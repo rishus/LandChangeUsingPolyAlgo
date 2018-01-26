@@ -6,6 +6,8 @@ Original code is in from /bfast/python/bfast.py
 That code was running complete n all. 
 
 This version created on Thu Oct 6 13:10:33 2016.
+The first change here is that I'm removing main() and
+adapting bast() so that it can be called from poly.py.
 @author: rishu
 """
 
@@ -184,9 +186,10 @@ def calcPValue(x, method, k, h, fnal):
     
     return pval
     
+
 def recresids(t, u, begin_idx, model, deg):
 
-    # remember, in Python, indices here will start from 0. 
+    # remember, unlike Fortran, indices here will start from 0. 
     # begin_idx denotes the first point for which the residual will be calculated.
     # So remember use begin_idx as one less than what we were using in Fortran.
     # Also, begin_idx is only wrt the subset array that has been passed in.
@@ -205,8 +208,9 @@ def recresids(t, u, begin_idx, model, deg):
             X[:, 2*j-1] = np.asarray([np.cos(j * t[i]) for i in range(0,Sfinal)])
             X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,Sfinal)])
     else:
-        print "model not supported"    
-        
+        print "model not supported"
+    
+    
     check = True
     recres = [ 0 for i in range(0, Sfinal) ]
     # begin_idx is the firstmost index where the residual will be calculated.
@@ -247,6 +251,7 @@ def recresids(t, u, begin_idx, model, deg):
 
 def getRSStri(t, u, model, h, K):
     
+    # what is h? breakpoint spacing?
     # remember, unlike Fortran, indices here will start from 0. 
     # So remember use begin_idx as one less than what we were using in Fortran.
     # Basically, recresid will get filled from idx=ncols to idx=Sfinal for linear regression.
@@ -443,27 +448,27 @@ def hammingDist(list1, list2):
     return sum(c1 != c2 for c1, c2 in zip(list1, list2)) + abs(len_list2 - len_list1)
 
 
-def bfast(tyeardoy, vec_obs_all, \
+def bfast(tyeardoy, vec_obs_all, presInd, \
           ewma_trainingStart, ewma_trainingEnd, ewma_lowthreshold, ewma_K, \
           frequency, numBrks, harmonicDeg, h, numColsProcess, pval_thresh, maxIter):
 
     num_obs = len(vec_obs_all)
 
     # ************* develop the presInd vector ***********************
-    presInd = np.where(vec_obs_all > ewma_lowthreshold)[0]
-    tyeardoy_idxs = np.where(np.logical_and(ewma_trainingStart<= tyeardoy[:,0], \
-                                            tyeardoy[:,0]< ewma_trainingEnd))[0]
-    common_idx = list(set(tyeardoy_idxs).intersection(presInd))
-    training_t = tyeardoy[common_idx, 1]
+#    presInd = np.where(vec_obs_all > ewma_lowthreshold)[0]
+#    tyeardoy_idxs = np.where(np.logical_and(ewma_trainingStart<= tyeardoy[:,0], \
+#                                            tyeardoy[:,0]< ewma_trainingEnd))[0]
+#    common_idx = list(set(tyeardoy_idxs).intersection(presInd))
+#    training_t = tyeardoy[common_idx, 1]
+#
+#    #Corner case
+#    if (len(training_t) < 2 * ewma_K + 1):    #from ewmacd
+#        brkPtsGlobalIndex = [0, num_obs-1]
+#        brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGlobalIndex]
+#        vecTrendFitFull = [-2222]*num_obs
+#        brkpt_summary = [-2222]*num_obs
+#        return brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary
 
-    #Corner case
-    if (len(training_t) < 2 * ewma_K + 1):    #from ewmacd
-        brkPtsGlobalIndex = [0, num_obs-1]
-        brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGlobalIndex] 
-        vecTrendFitFull = [-2222]*num_obs
-        brkpt_summary = [-2222]*num_obs
-        return brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary
-                
     ind = 0
     num_days_gone = 0
     vec_timestamps_edited = np.zeros(num_obs)
@@ -609,18 +614,6 @@ def bfast(tyeardoy, vec_obs_all, \
         hamTrend = hammingDist(vecTrendBrks, vecTrendBrksOld)
         hamSeason = hammingDist(vecSeasonalBrks, vecSeasonalBrksOld)
         it += 1
-        
-    # merge/drop unnecessary brkpts. 
-    #Most updated set of trend breaks is in vecTrendBrks
-    #Most recent construction is in vecTrendFit
-#    vecTrendBrks_final = [vecTrendBrks[0]]
-#    for i in vecTrendBrks[1:-1]:
-#        this_seg_endpt_val = 1
-#        next_seg_startpt_val = 1 
-#        if abs(this_seg_endpt_val - next_seg_startpt_val) > brkpt_mag_thresh:
-#            vecTrendBrks_final.append(i)
-#        
-#    vecTrendBrks_final.append(vecTrendBrks[-1])
     
     # get reconstruction on original (all) timepoints
     vecTrendFitFull = np.zeros(num_obs)
@@ -645,3 +638,25 @@ def bfast(tyeardoy, vec_obs_all, \
         brkpt_summary[i] = vecTrendFitFull[i] - vecTrendFitFull[i-1]
 
     return brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary
+#brkptsummary is needed in these 1D codes to make 1D plots. But for 2D, it is redundant.    
+
+#    43265765020004 success
+#    87095642020004 success
+#    216219303020004 success
+#    216219592020004 success
+#    
+
+#   87095310020004  utter failure when 3 breakpoints are used. two makes it better but not a whole lot.
+
+#   216220323020004  study sensitivity to number of breaks
+#   216219091020004    --- do --- (last loss gets cptured on using 3 brkpts)
+#   216219752020004    hige difference in trend using 2 vs 3 brkpts
+
+# computationally expensive
+# number of brkpts how to decide? brkpts often get placed at unexpected locations.
+#           and number of breakpoints limits how many phenomenon can be captured
+# it is hard to find instances where BFAST did not capture the significant events (or,
+#           the two most significant event/trends). however, beyond that, BFAST seems
+#           to miss out on more subtle trends
+# sharp recovery cannot be interpreted. no check on such instances.
+# discontinuous nature of the fit --- other than 'events', nothing in nature is discontinuous.
