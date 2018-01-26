@@ -80,23 +80,10 @@ def despike(vec_timestamps, vec_obs, despike_tol):
         
         #max value is found excluding 1st and last position.
         prop = max(prop_correction[1:Sfinal-1]) 
-#            prop_ind = prop_correction.index(prop)
-        #index is found including 0th position. So no need for further correction
         prop_ind = [i for i, x in enumerate(prop_correction) if x == prop]
-#            for i, x in enumerate(prop_correction):
-#                if x == prop:
-#                    vec_obs_updated[i] = vec_obs_updated[i] + correction[i]
-#        print 'prop_ind:', prop_ind
         for i in prop_ind:
-#            print vec_obs_updated[i], ' + ', correction[i], '= ', vec_obs_updated[i] + correction[i]
             vec_obs_updated[i] = vec_obs_updated[i] + correction[i]
-#            print vec_obs_updated[i]
-#            vec_obs_updated[prop_ind] = vec_obs_updated[prop_ind] + correction[prop_ind]
         count = count + 1
-#        fh.write(','.join([str(i) for i in vec_obs_updated ]))
-#    print 'vec_obs_updated:'
-#    for i in vec_obs_updated:
-#        print i
 
     return vec_obs_updated
     
@@ -142,21 +129,12 @@ def splitSeries(vec_timestamps, vec_obs, endSegment, distTest):
     diff = [abs(vec_obs[i] - fit[i]) for i in range(S)]
     diff[0] = 0
     diff[S-1] = 0 #end points are already vertices. So take them out of consideration
-#    with open('ltr_python_output.csv','a') as fh:
-#        for i in range(S):
-#            fh.write('[ ' +  str(fit[i]) + ', ' + str(diff[i]) + '],' + '\n')
-#    fh.close()
     
     if (distTest) and (endSegment) :
         if (vec_obs[S-1] <= vec_obs[S-2]):
             diff[S-2] = 0
         
     maxDiffInd = diff.index(max(diff))
-#    with open('ltr_python_output.csv','a') as fh:
-#        fh.write('basics:' + str(maxDiffInd)+ ' , S =  ' + str(S) + '\n')
-#        fh.write(' -----  ' + '\n')
-#    fh.close()
-    #maxDiffVal = max(diff)
     
     if (maxDiffInd > 0):
         ok = True    
@@ -194,9 +172,6 @@ def getInitVerts(vec_timestamps, vec_obs, mpnp1, distwtfactor):
             #2. Take the ONE interval with HIGHEST MSE and split it into two at
             #   the point of highest deviation. So this 'highest mse' interval
             #   is sent into splitSeries. Both endpoints are included.
-#            with open('ltr_python_output.csv', 'a') as fh:
-#                fh.write('calling split series' + '\n')
-#            fh.close()
             newVertInd, ok = splitSeries(
                         vec_timestamps[vertices[max_mse_ind]: vertices[max_mse_ind+1]+1],
                         vec_obs[vertices[max_mse_ind] : vertices[max_mse_ind+1]+1], 
@@ -209,7 +184,6 @@ def getInitVerts(vec_timestamps, vec_obs, mpnp1, distwtfactor):
         vertices.append(newVertInd + vertices[max_mse_ind] )
         vertices.sort()
         currNumVerts += 1
-#        print 'intiVerts in construction:', vertices
 
     # We been able to find as many vertices as were possible by now.
     # Return this set to the calling program.
@@ -271,7 +245,6 @@ def cullByAngleChange(vec_timestamps, vec_obs, startingVerts, mu, nu, distwtfact
     #del (angles[0])
     
     # Now go through iteratively and remove them
-#    print 'angles: ', angles
     for i in range(numVertsToRemove):
         #pick from the slope diffs in play (not the ones at the end, which are 
         #shifted there from prior iterations)
@@ -324,14 +297,11 @@ def cullByAngleChange(vec_timestamps, vec_obs, startingVerts, mu, nu, distwtfact
 
 def pickBetterFit(vec_obs, fit1, fit2):
 
-#    print 'SIZE(fit1) =', len(fit1)
-#    print 'fit1:', fit1[0], fit1[-1]
     diff1 = [vec_obs[i] - fit1[i] for i in range(len(fit1))]
     diff2 = [vec_obs[i] - fit2[i] for i in range(len(fit2))]
     
     mse1 = np.dot(diff1, diff1)
     mse2 = np.dot(diff2, diff2)
-#    print 'mse1 =', mse1, ' mse2=', mse2
     if (mse1 < mse2):
         return 'fit1'
     else:
@@ -340,20 +310,12 @@ def pickBetterFit(vec_obs, fit1, fit2):
 
 def anchoredRegress(xvals, yvals, yanchorval):
 
-#    with open("ltr_python_output.csv", "a") as fh:
-#        fh.write('xvals(1) = ' + str(xvals[0]) + '\n')
     x = xvals - xvals[0]
     y = yvals - yanchorval
-#        fh.write("yvals:" + '   '.join([str(i) for i in yvals])  + '\n')
     xy = np.dot(x, y)
     xx = np.dot(x, x)
-#        if (xvals[0] == 425.0):
-#            fh.write('xy = ' + str(xy) + ', xx = ' + str(xx)  + '\n')
     slope = xy/xx
     fit = [slope *xcoord + yanchorval  for xcoord in  x]
-#        fh.write('slope: ' + str(slope) + ', yanchorval: ' + str(yanchorval)  + '\n')
-
-#    fh.close()
     return slope, fit
 
 
@@ -378,10 +340,6 @@ def findBestTrace(vec_timestamps, vec_obs, currVerts):
     yFitVals = [0] * Sfinal
     yCoordsOfVerts = [vec_obs[i] for i in currVerts]
     slopes = [0] * numSegs
-#    with open("ltr_python_output.csv", "a") as fh:
-#        fh.write('yCoordsOfVerts: '+ '   '.join([str(i) for i in yCoordsOfVerts]) + '\n')
-#        fh.write('\n')
-#    fh.close()
     # linear fit in the interval [t_1, t_{v_1}]
     seg = 1
     v1 = currVerts[0]
@@ -405,10 +363,7 @@ def findBestTrace(vec_timestamps, vec_obs, currVerts):
         yCoordsOfVerts[seg] = regressWay[v2]
         slopes[seg-1] = dummy[1]   # becuz that's how we had set up our matrix in regress.
 
-#    with open("ltr_python_output.csv", "a") as fh:
     for seg in range(2, numSegs+1):
-#            fh.write('--------------------------' + '\n')
-#            fh.write('segment' + str(seg) + '\n')
         v1 = currVerts[seg-1]
         v2 = currVerts[seg]
         fillWay = np.interp(vec_timestamps[v1:v2+1] , \
@@ -417,14 +372,6 @@ def findBestTrace(vec_timestamps, vec_obs, currVerts):
 
         dummy, anchWay = anchoredRegress(vec_timestamps[v1:v2+1], \
                                      vec_obs[v1:v2+1], yCoordsOfVerts[seg-1])
-
-#            if (seg == 3):
-#                fh.write('********' + '\n')
-#                fh.write('end points:'+ '   '.join( [ str(vec_timestamps[v1]), str(vec_timestamps[v2]) ] ) + '\n')
-#                fh.write('obs values at end points:'+ '   '.join([str(yCoordsOfVerts[seg-1]), str(yCoordsOfVerts[seg])]) + '\n')
-#                fh.write( '********' + '\n')
-#            fh.write( 'fill fit coeffs:' + '\n')
-#            fh.write( 'anch fit coeffs:'+ str(dummy)+ '\n')
 
         choice = pickBetterFit(vec_obs[v1:v2+1], fillWay, anchWay)
 
@@ -442,8 +389,6 @@ def findBestTrace(vec_timestamps, vec_obs, currVerts):
             #yCoordsOfVerts[seg-1] = anchWay[0]     #will be same as before.
             yCoordsOfVerts[seg] = anchWay[-1]   #only this one needs to be updated.
             slopes[seg-1] = dummy   # becuz that's how we had set up our matrix in regress.
-#            fh.write("update vertYVals:" + ' '.join([str(i) for i in yCoordsOfVerts]))
-#    fh.close()
     bt = {'vertices': currVerts, 'vertYVals': yCoordsOfVerts, \
           'yFitVals' : yFitVals, 'slopes' : slopes}
     
@@ -531,19 +476,9 @@ def takeOutWeakest(currModel, threshold, vec_timestamps, vec_obs, v, vertVals):
             vec_obs_local = vec_obs[vleft:vright+1]
             diff = [ptpfill[j] - vec_obs_local[j] for j in range(len(ptpfill))]
             MSE.append((sum(p*q for p,q in zip(diff, diff)))/(rightx - leftx))
-#            with open("ltr_python_output.csv", "a") as fh:
-#                fh.write('vleft =' + str(vleft) + ',  vright=' + str(vright) +'\n')
-#                fh.write('leftx =' + str(leftx) +',  lefty =' + str(rightx) + '\n')
-#                fh.write('lefty =' + str(lefty) +',  righty =' + str(righty) + '\n')
-#                fh.write(' '.join([str(diff[j]) for j in range(len(ptpfill))]) + '\n')
-#                fh.write(' '.join([str(diff[j]) for j in range(2)]) + '\n')
-#                fh.write('MSE(' + str(i+1) + ')=' + str(MSE[i]) + '\n')
 
         MSE.append(99999999)
         
-#        with open("ltr_python_output.csv", "a") as fh:
-#            fh.write('MSE: '+ ' '.join([str(i) for i in MSE]) + '\n')
-#        fh.close()
         weakest_vertex = MSE.index(min(MSE[1:nVerts-1]))
         #Drop the weakest vertex
         del (updatedVerts[weakest_vertex])
@@ -609,8 +544,6 @@ def calcFittingStats(vec_obs, vec_fitted, nParams):
         # Get the probability that F > f, i.e., Q(f| d1, d2)
         # We get Ix. p_of_f is 1.0 - Ix.
         pval = splfn.betainc( 0.5 * dof2, 0.5 * dof1 , dof2/(dof2 + dof1*f) )  
-#        pval_test = splfn.betainc( 1.0, 2.0 , 0.25 )
-#        print 'pOfF =', 1.0 - pval
         aic = (2.0 * nParams) + (nObs * np.log(X2_squared/nObs))
         aicc = aic + ((2.0 * nParams*(nParams+1))/(nObs - nParams -1))
         modelStats = {'ok': 1,
@@ -644,13 +577,8 @@ def pickBestModel(my_models, best_model_proportion, use_fstat, pval):
         #comibination with it's p-value is more indicative.
         #Want to settle on a model that has low p of F-statistic
         mn = min([my_models[i]['p_of_f'] for i in range(numModels)])
-#        with open("ltr_python_output.csv", 'a') as fh:
-#            fh.write('  '.join([str(my_models[i]['p_of_f']) for i in range(numModels)])   + '\n')
         tau = (2.0 - best_model_proportion)*mn
-#        print 'tau = ', tau
-#        print 'numModels =', numModels
         goodModelsInd = [i for i in range(numModels) if my_models[i]['p_of_f'] <= tau]
-#        print 'goodModelsInd=', goodModelsInd
         bestModelInd = goodModelsInd[0]
     else:
         # Compromise: We'll make a choice based on F-statistic only. But, at least, we make
@@ -689,16 +617,10 @@ def check_slopes(model, recovery_thresh):
 
     #negatives = [i for i in range(n_slopes) if model['slopes'][i] < 0]
     positives = [i for i in range(n_slopes) if model['slopes'][i] > 0]
-#    with open("ltr_python_output.csv", "a") as fh:
-#        fh.write('positive-slope segments' + ' '.join([str(i) for i in positives]) + '\n')
-#    fh.close()
     range_of_vals = max(model['yfit']) - min(model['yfit'])
     if (len(positives) > 0):
 #        scaled_slopes = [abs(model['slopes'][i])/range_of_vals for i in positives]
         scaled_slopes = [model['slopes'][i]/range_of_vals for i in positives]
-#        with open("ltr_python_output.csv", "a") as fh:
-#            fh.write('scaled positive-slopes' + ' '.join([str(i) for i in scaled_slopes]) + '\n')
-#        fh.close()        
         if (max(scaled_slopes) > recovery_thresh):
             accept = 'No'
             return accept
@@ -732,42 +654,20 @@ def findBestTrace_alternate(vec_timestamps, vec_obs, currVerts):
 
     Sfinal = len(vec_timestamps)        # number of data points
     knots = [vec_timestamps[0]] + [vec_timestamps[i] for i in currVerts] + [vec_timestamps[Sfinal-1]]
-#    with open("ltr_python_output.csv", "a") as fh:
-#        fh.write('currVerts:' + '  '.join([str(i) for i in currVerts]) + '\n')
-#    fh.close()
 
     weight = [1 for i in range(Sfinal)]
-#                 l2appr(n_dim,     K, vec_timestamps, vec_obs, numObs, knots, weight)
 
     bcoeff = myb.l2appr(n_dim, order, vec_timestamps, vec_obs, Sfinal, knots, weight)
     bcoeff_list = bcoeff.tolist()
-#    with open("ltr_python_output.csv", "a") as fh:
-#        fh.write('n_dim = ' + str(n_dim) + ', order= '+ str(order) + ', Sfinal = '+ str(Sfinal) + '\n')
-#        fh.write('\n')
-#        fh.write('timepoints: ' + '  '.join([str(i) for i in vec_timestamps]) + '\n')
-#        fh.write('\n')
-#        fh.write('vec_obs: ' + '  '.join([str(i) for i in vec_obs]) + '\n')
-#        fh.write('\n')
-#        fh.write('knots: ' + '  '.join([str(i) for i in knots]))
-#        fh.write('\n')
-#        fh.write('bcoeffs = ' + '  '.join([str(i) for i in bcoeff_list]) + '\n')
-#        fh.write('\n')
-#        fh.write('\n')
-#    fh.close()
     yfit = [0 for i in range(Sfinal)]
     for i in range(Sfinal):
         yfit[i] = myb.bvalue(vec_timestamps[i], bcoeff_list, 0, order, knots, n_dim)
         
-#    with open('ltr_python_output.csv','a') as fh:
-#        fh.write('yfit: ' + '  '.join([str(i) for i in yfit]) + '\n' )
-#    fh.close()
-
     xCoordsOfVerts = [vec_timestamps[i] for i in currVerts]
     yCoordsOfVerts = [yfit[i] for i in currVerts]
     slopes = [0]*numSegs
     for i in range(numSegs):
         this_seg_slope = (yCoordsOfVerts[i+1] - yCoordsOfVerts[i])/(xCoordsOfVerts[i+1] - xCoordsOfVerts[i])
-#        this_seg_intercept = yCoordsOfVerts[i] - slopes[i]*xCoordsOfVerts[i]
         slopes[i] = this_seg_slope
 
     bt = {'vertices': currVerts, 'vertYVals': yCoordsOfVerts, 'yFitVals' : yfit, 'slopes' : slopes}
@@ -862,7 +762,7 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
         ind += 1
 
     #*************** prepare data ***********************************
-    vec_timestamps = vec_timestamps_edited[presInd] # in original implementation, this is a subset of even presInd.
+    vec_timestamps = vec_timestamps_edited[presInd] # in original implementation, this is a subset of presInd.
 #                                                     Only summer indices are included.
     vec_obs = vec_obs_all[presInd]
     summer_pres_indices = presInd
@@ -1046,9 +946,6 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
 
         my_models = copy.deepcopy(my_alternate_models)
 
-#    my_models[bestModelInd]['vertices'][0] = 0           #to account for the case when the very first obs is missing
-#    my_models[bestModelInd]['vertices'][-1] = num_obs-1  #replace the last 'present' index with last actual index
-
     # get fit on the whole interval
     vecTrendFitFull = np.zeros(num_obs)
 #    vecTrendFitFull[presInd] = my_models[bestModelInd]['yfit']
@@ -1059,8 +956,6 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
     brkptsGI[0] = 0     # to account for any missing observations in the beginning
     brkptsGI[-1] = num_obs - 1   # to account for any missing observations at the end
     brkPtYrDoy = [tyeardoy[i,:] for i in brkptsGI]
-#    for i in brkPtYrDoy:
-#        print i
 
     left = 0
     right = 1
@@ -1081,7 +976,7 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
                 right += 1
                 if right >= numVerts-1:
                     break
-            # Fetch the (x,y) coordinates of the segment representing this interval.
+            # Get the (x,y) coordinates of the segment representing this interval.
             x1 = vec_timestamps[vertices[left]]
             y1 = my_models[bestModelInd]['vertYVals'][left]
             x2 = vec_timestamps[vertices[right]]
