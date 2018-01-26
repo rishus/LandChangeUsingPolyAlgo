@@ -251,7 +251,6 @@ def recresids(t, u, begin_idx, model, deg):
 
 def getRSStri(t, u, model, h, K):
     
-    # what is h? breakpoint spacing?
     # remember, unlike Fortran, indices here will start from 0. 
     # So remember use begin_idx as one less than what we were using in Fortran.
     # Basically, recresid will get filled from idx=ncols to idx=Sfinal for linear regression.
@@ -302,31 +301,22 @@ def buildDynPrTable(RSSTri_full, numBrks, Sfinal, h):
 
     matPos[:,:] = -1
     brkpt_spacing = int(np.floor(Sfinal*h))
-#    print brkpt_spacing
-#    print "brkpt_spacing = ", brkpt_spacing
     matCost[:,:] = sys.maxint
     matCost[0,brkpt_spacing:Sfinal-brkpt_spacing] = RSSTri_full[0][brkpt_spacing:Sfinal-brkpt_spacing]
     matPos[0,brkpt_spacing:Sfinal-brkpt_spacing] = [i for i in range(brkpt_spacing,Sfinal-brkpt_spacing)]
-#    print matCost[0,brkpt_spacing:Sfinal-brkpt_spacing]
     for nbs in range(1,numBrks):
         beginIdx = nbs * brkpt_spacing  #obvious
         endIdx = Sfinal - brkpt_spacing #obvious
         for idx in range(beginIdx, endIdx):
             potIdxBegin = nbs * brkpt_spacing   #valid pos for nbs-1 breakpoints
             potIdxEnd = min(idx- brkpt_spacing, Sfinal-brkpt_spacing)
-            #print "idx = ", idx, "potRange = ", potIdxBegin, ", ", potIdxEnd
             vecCost = [sys.maxint for i in range(0, Sfinal)]
             for j in range(potIdxBegin, potIdxEnd):
                 vecCost[j] = matCost[nbs-1, j] + RSSTri_full[j][idx]
-                #if nbs == 1:
-                #    print "choices: bp = ", j, " ", matCost[nbs-1,j], " ", RSSTri_full[j][idx]
                 assert j< idx
 
             matCost[nbs, idx]  = min(vecCost)
             matPos[nbs, idx] = int(np.argmin(vecCost))
-#            print 'sys.maxint = ', sys.maxint
-#            if idx == 76:
-#                print  nbs, potIdxBegin, " ", potIdxEnd, " ", np.argmin(vecCost), vecCost
     
     for idx in range(numBrks * brkpt_spacing, Sfinal-brkpt_spacing):
         matCost[numBrks-1, idx] = matCost[numBrks-1, idx] + RSSTri_full[idx][-1]
@@ -340,10 +330,8 @@ def buildDynPrTable(RSSTri_full, numBrks, Sfinal, h):
     i = numBrks - 1
     while(i > 0):
         curr_brkpt_pos = matPos[i, int(curr_brkpt_pos)] #start pos for last segment
-#        print i, curr_brkpt_pos
         vecBrkPts[i-1] = int(curr_brkpt_pos)  #we are ignoring the 0-row,0-column
         i = i -1
-#    print "Breakpoints = ", vecBrkPts
 
     return  vecBrkPts
 
@@ -364,7 +352,6 @@ def buildDynPrTable_stencil(RSSTri_full, numBrks, Sfinal, h):
     brkpt_spacing = int(np.floor(Sfinal*h))
     
     matCost[:,:] = 99999999
-#    print "Values read: [0]",brkpt_spacing-1,  ":", Sfinal-brkpt_spacing
     matCost[1,brkpt_spacing:Sfinal-brkpt_spacing+1] = RSSTri_full[0][brkpt_spacing-1:Sfinal-brkpt_spacing]
     matPos[1,brkpt_spacing:Sfinal-brkpt_spacing+1] = [i for i in range(brkpt_spacing,Sfinal-brkpt_spacing+1)]
     #for nbs in range(2,numBrks+1):
@@ -372,7 +359,6 @@ def buildDynPrTable_stencil(RSSTri_full, numBrks, Sfinal, h):
         # matCost(nbs, beginIdx) to matCost(nbs,EndIdx) will get filled
         beginIdx = nbs * brkpt_spacing          #for nbs=2, h=10, beginIdx=20
         endIdx = Sfinal - brkpt_spacing       # endIdx = n-10 = 100-90 = 90 (say)
-#        print "beginIdx, endIdx=",  beginIdx, endIdx
         # vecCost will get filled from potIdxBegin to potIdnEnd.
         # matCost at nbs point will be based on minimizing vecCost[potIdxBegin:potIdxEnd]
         potIdxBegin = (nbs-1) * brkpt_spacing   #for nbs=2,h=10, potIdxBegin=10
@@ -404,7 +390,6 @@ def buildDynPrTable_stencil(RSSTri_full, numBrks, Sfinal, h):
     i = numBrks
     while(i > 1):
         curr_brkpt_pos = matPos[i, curr_brkpt_pos]
-#        print i, curr_brkpt_pos
         i = i -1
         vecBrkPts[i-1] = curr_brkpt_pos + 1  #we are ignoring the 0-row,0-column
     
@@ -422,7 +407,6 @@ def buildDynPrTable_stencil(RSSTri_full, numBrks, Sfinal, h):
         del (vecBrkPts[indexSfinal])
     except:
         junk = 1
-#        print "no Sfinal in vecBrkPts"n
 
     return vecBrkPts
 
@@ -538,15 +522,11 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
         # get OLS-MOSUM statistics
         process = OLSMosum(vec_timestamps_edited_pres, u, "linear", h, 0)
         pValTrend = calcPValue(np.abs(max(process)), "brownian bridge increments", numColsProcess, h, "max")
-#        print pValTrend, pval_thresh, h
-        # get breakpoints in trend
-#        print 'it = ', it, ', pValTrend =', pValTrend, ', pval_thresh =', pval_thresh
         if pValTrend <= pval_thresh:
             RSStri = getRSStri(vec_timestamps_edited_pres, u, "linear", h, 0)
             a = buildDynPrTable(RSStri, numBrks, Sfinal, h)
             vecTrendBrks = np.concatenate(([0], a))
             vecTrendBrks = np.concatenate((vecTrendBrks, [Sfinal-1]))    
-#            print 'vecTrendBrks:', vecTrendBrks
             # do piecewise linear approximation
             numInternalBrksFinal = len(vecTrendBrks) - 2
             numTrendSegs = numInternalBrksFinal + 1
@@ -639,24 +619,3 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
 
     return brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary
 #brkptsummary is needed in these 1D codes to make 1D plots. But for 2D, it is redundant.    
-
-#    43265765020004 success
-#    87095642020004 success
-#    216219303020004 success
-#    216219592020004 success
-#    
-
-#   87095310020004  utter failure when 3 breakpoints are used. two makes it better but not a whole lot.
-
-#   216220323020004  study sensitivity to number of breaks
-#   216219091020004    --- do --- (last loss gets cptured on using 3 brkpts)
-#   216219752020004    hige difference in trend using 2 vs 3 brkpts
-
-# computationally expensive
-# number of brkpts how to decide? brkpts often get placed at unexpected locations.
-#           and number of breakpoints limits how many phenomenon can be captured
-# it is hard to find instances where BFAST did not capture the significant events (or,
-#           the two most significant event/trends). however, beyond that, BFAST seems
-#           to miss out on more subtle trends
-# sharp recovery cannot be interpreted. no check on such instances.
-# discontinuous nature of the fit --- other than 'events', nothing in nature is discontinuous.
