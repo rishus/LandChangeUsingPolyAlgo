@@ -20,64 +20,6 @@ import datetime as dt
 import matplotlib.ticker as ticker
 import matplotlib.dates as mdates
 
-def data_from_csvFile(path, fn, my_pid, time_start, time_end):
-
-    fn = path + fn
-    
-    mat_all_lines = []
-    with open(fn, 'r') as f:
-        first_line = f.readline()
-        for i, line in enumerate(f):
-            mat_all_lines.append(line)
-            pass
-
-#    num_lines = i + 1   # first line was anyways just headings
-
-    inline = first_line.strip()
-    first_line_vals = inline.split(',')[1:]
-    
-    # get timestamps from the first line
-    tyeardoy_all = np.zeros((len(first_line_vals), 2))
-    for i in range(0, len(first_line_vals)-3):
-        rel_part = first_line_vals[i].split('_')[1]   #each entry in first_line_vals is of the form Masked_430301984132PAC00LT5_srndvi
-#        pathrow = rel_part[0:5]
-        year = rel_part[5:9]
-        tyeardoy_all[i, 0] = int(year)
-        doy = rel_part[9:12]
-        tyeardoy_all[i, 1] = int(doy)
-#        junk = rel_part[12:17]
-#        sensor = rel_part[17:20]
-
-    # get observations from the rest of the lines
-    mat_obs = []
-    for line in range(0, len(mat_all_lines)):
-        band_vals = mat_all_lines[line].strip().split(',')
-        pid = int(band_vals[0][1:-1])
-        mat_obs.append(band_vals[1:])
-        if pid == my_pid:
-            vec_obs_all = []
-            for i in band_vals[1:]:
-                vec_obs_all.append(float(i))
-                
-    # limit returns to the desired time span
-    a = [i for i in range(len(vec_obs_all)) \
-            if (tyeardoy_all[i, 0] >= time_start) and (tyeardoy_all[i, 0] < time_end)]
-
-    tyeardoy = np.zeros((len(a), 2))
-    ctr = 0
-    for i in a:
-        tyeardoy[ctr, 0] = int(tyeardoy_all[i, 0])
-        tyeardoy[ctr, 1] = int(tyeardoy_all[i, 1])
-        ctr += 1
-
-    vec_obs = np.asarray([vec_obs_all[i] for i in a])
-    
-    # notice that tyeardoy is sent out as an array while vec_obs is sent as a list.
-    # well, not any more
-    
-    return vec_obs, tyeardoy
-
-
 def data_from_timeSyncCsvFile(path, mat_all_lines, fn_groundTruth, my_pid, time_start, time_end):
 
     num_lines = len(mat_all_lines)
@@ -241,12 +183,12 @@ def process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist
                                    #So if use_fstat = 0, the code will use p_of_f.
     landtrend_best_model_proportion = 0.75
 
-    fig, ax = plt.subplots()
-    fig.set_size_inches(8,6)
-    ax.plot()
-    years_all = [int(tyeardoy[i, 0]) for i in range(0, num_obs)]
-    doys_all = [int(tyeardoy[i, 1]) for i in range(0, num_obs)]
-    dates_all = [dt.datetime(year, 1, 1) + dt.timedelta(day - 1) for year,day in zip(years_all,doys_all)]
+#    fig, ax = plt.subplots()
+#    fig.set_size_inches(8,6)
+#    ax.plot()
+#    years_all = [int(tyeardoy[i, 0]) for i in range(0, num_obs)]
+#    doys_all = [int(tyeardoy[i, 1]) for i in range(0, num_obs)]
+#    dates_all = [dt.datetime(year, 1, 1) + dt.timedelta(day - 1) for year,day in zip(years_all,doys_all)]
     for band in range(num_bands):
         bf_brks_GI, bfast_brkpts, bfast_trendFit, bfast_brkptsummary = \
                     bf.bfast(tyeardoy, vec_obs_original[band], \
@@ -269,9 +211,9 @@ def process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist
                           landtrend_use_fstat, landtrend_best_model_proportion, \
                           landtrend_pval)
                         
-        print 'bfast_brkpts: ', bf_brks_GI
-        print 'ewma_brkpts: ', ewma_brkpts
-        print 'ltr_brkpts: ', ltr_brks_GI
+#        print 'bfast_brkpts: ', bf_brks_GI
+#        print 'ewma_brkpts: ', ewma_brkpts
+#        print 'ltr_brkpts: ', ltr_brks_GI
 
         if (bestModelInd == -9999):  # applicable to all three algos
             print bestModelInd
@@ -335,64 +277,64 @@ def process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist
         fh.close()
         
         ######## plot outputs and input #########
-        presInd = [i for i in range(num_obs) if \
-                   ((vec_obs_original[band][i]!=-9999) and (vec_obs_original[band][i] > ewma_lowthreshold))]
-        if len(presInd) == 0:
-            print 'presInd = 0 in processPixel'
-            return
+#        presInd = [i for i in range(num_obs) if \
+#                   ((vec_obs_original[band][i]!=-9999) and (vec_obs_original[band][i] > ewma_lowthreshold))]
+#        if len(presInd) == 0:
+#            print 'presInd = 0 in processPixel'
+#            return
 
-        vec_obs_pres = [vec_obs_original[band][i] for i in presInd]
-        Sfinal = len(presInd)
-        years = [int(tyeardoy[i, 0]) for i in presInd]
-        doys = [int(tyeardoy[i, 1]) for i in presInd]
-        dates = [dt.datetime(year, 1, 1) + dt.timedelta(day - 1) for year,day in zip(years,doys)]
-        datemin = dt.date(min(dates).year, 1, 1)
-        datemax = dt.date(max(dates).year + 1, 1, 1)
-        year_tics = sorted(set([dt.date(d.year,1, 1) for d in dates]))
-        ticklabels = ['']*len(year_tics)
-        ticklabels[::tickGap] = [item.strftime('%Y') for item in year_tics[::tickGap]]    # Every 5th ticklable shows the month and day
-        bfast_trendFit_scaled = [float(bfast_trendFit[i])/float(10000) for i in range(num_obs)]
+#        vec_obs_pres = [vec_obs_original[band][i] for i in presInd]
+#        Sfinal = len(presInd)
+#        years = [int(tyeardoy[i, 0]) for i in presInd]
+#        doys = [int(tyeardoy[i, 1]) for i in presInd]
+#        dates = [dt.datetime(year, 1, 1) + dt.timedelta(day - 1) for year,day in zip(years,doys)]
+#        datemin = dt.date(min(dates).year, 1, 1)
+#        datemax = dt.date(max(dates).year + 1, 1, 1)
+#        year_tics = sorted(set([dt.date(d.year,1, 1) for d in dates]))
+#        ticklabels = ['']*len(year_tics)
+#        ticklabels[::tickGap] = [item.strftime('%Y') for item in year_tics[::tickGap]]    # Every 5th ticklable shows the month and day
+##        bfast_trendFit_scaled = [float(bfast_trendFit[i])/float(10000) for i in range(num_obs)]
 #        bfast_trendFit_scaled = [float(bfast_brkptsummary[i])/float(10000) for i in range(num_obs)]
-        ltr_trend_scaled = [float(ltr_trendFit[i])/float(10000) for i in range(num_obs)]
+##        ltr_trend_scaled = [float(ltr_trendFit[i])/float(10000) for i in range(num_obs)]
 #        ltr_trend_scaled1 = [float(ltr_brkptsummary[i])/10.0 for i in range(num_obs)]
-#        ltr_trend_scaled2 = [float(allmodels_LandTrend[bestModelInd]['yfit'][i])/float(10000) for i in range(Sfinal)]
-        ewmacd_flags_scaled = [float(ewma_summary[i])/float(10) for i in range(num_obs)]
+##        ltr_trend_scaled2 = [float(allmodels_LandTrend[bestModelInd]['yfit'][i])/float(10000) for i in range(Sfinal)]
+##        ewmacd_flags_scaled = [float(ewma_summary[i])/float(10) for i in range(num_obs)]
 #        ewmacd_flags_scaled = [float(ewma_brkptsummary[i])/float(10) for i in range(num_obs)]
-        vec_obs_pres_plot = [float(vec_obs_pres[i])/float(10000) for i in range(Sfinal)]
-        line, = ax.plot(dates, vec_obs_pres_plot, '--', color=colors[0], \
-                linewidth=2, markersize=6 , label='NDVI')  #+str(band))
-        line.set_dashes(dashes[band])
+#        vec_obs_pres_plot = [float(vec_obs_pres[i])/float(10000) for i in range(Sfinal)]
+#        line, = ax.plot(dates, vec_obs_pres_plot, '--', color=colors[0], \
+#                linewidth=2, markersize=6 , label='NDVI')  #+str(band))
+#        line.set_dashes(dashes[band])
 #        ax.plot(dates_all, ltr_trend_scaled, '-', color=colors[0], linewidth=line_widths[0], label='LandTrendR')
 #        ax.plot(dates_all, ltr_trend_scaled1, '-', color=colors[0], linewidth=line_widths[0], label='LandTrendR')
 #        ax.plot(dates, ltr_trend_scaled2, '-', markersize=6, color=colors[0], linewidth=line_widths[0], label='LandTrendR')
-        ax.plot(dates_all, bfast_trendFit_scaled, '-', color=colors[1], linewidth=line_widths[0], label='BFAST')
+#        ax.plot(dates_all, bfast_trendFit_scaled, '-', color=colors[1], linewidth=line_widths[0], label='BFAST')
 #        ax.plot(dates_all, ewmacd_flags_scaled, '-', color=colors[2], linewidth=3, label='EWMACD/10')
-
-        legend = ax.legend(loc='best', fontsize=14, shadow=True)
-        frame = legend.get_frame()
-        legend.get_frame().set_alpha(0.5)
-        frame.set_facecolor('white')
-        years = mdates.YearLocator(tickGap, month=7, day=4)   # Tick every 5 years on Jan 1st #July 4th
-        yearsFmt = mdates.DateFormatter('%Y')
-        ax.xaxis.set_major_locator(years)
-        ax.xaxis.set_major_formatter(yearsFmt)
-        ax.set_xlim(datemin, datemax)
-#        ax.set_ylim(-0.1, 1.0)  #(min(ewmacd_flags_scaled)-0.05, 1.0)
-        ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels[::tickGap]))
-        ax.format_xdata = mdates.DateFormatter('%Y-%m-%d')
-        title_str = []
-        xlabel_str = []
-#        changes = [s_yr, e_yr, change_type, s_lu, e_lu]
-        for element in changes[1:]:
-            tmp = ','.join([element[0], element[1], element[2][0:3]])
-            tmp_lu_changes = '-->.'.join([element[3][0:3], element[4][0:3]])
-            title_str.append(tmp)
-            xlabel_str.append(tmp_lu_changes)
-        plt.title(title_str)
-        xlabel_str.append('  ' + winner)
-        plt.xlabel(xlabel_str)
-        plt.rcParams.update({'font.size': 22})
-
+#
+#        legend = ax.legend(loc='best', fontsize=14, shadow=True)
+#        frame = legend.get_frame()
+#        legend.get_frame().set_alpha(0.5)
+#        frame.set_facecolor('white')
+#        years = mdates.YearLocator(tickGap, month=7, day=4)   # Tick every 5 years on Jan 1st #July 4th
+#        yearsFmt = mdates.DateFormatter('%Y')
+#        ax.xaxis.set_major_locator(years)
+#        ax.xaxis.set_major_formatter(yearsFmt)
+#        ax.set_xlim(datemin, datemax)
+##        ax.set_ylim(-0.1, 1.0)  #(min(ewmacd_flags_scaled)-0.05, 1.0)
+#        ax.xaxis.set_major_formatter(ticker.FixedFormatter(ticklabels[::tickGap]))
+#        ax.format_xdata = mdates.DateFormatter('%Y-%m-%d')
+#        title_str = []
+#        xlabel_str = []
+##        changes = [s_yr, e_yr, change_type, s_lu, e_lu]
+#        for element in changes[1:]:
+#            tmp = ','.join([element[0], element[1], element[2][0:3]])
+#            tmp_lu_changes = '-->.'.join([element[3][0:3], element[4][0:3]])
+#            title_str.append(tmp)
+#            xlabel_str.append(tmp_lu_changes)
+#        plt.title(title_str)
+#        xlabel_str.append('  ' + winner)
+#        plt.xlabel(xlabel_str)
+#        plt.rcParams.update({'font.size': 22})
+#
 #        Har_in_change = 'No'
 #        for element in changes[1:]:
 #            if element[2][0:3] == 'Har':
@@ -402,20 +344,20 @@ def process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist
 #            fig_path = '/home/rishu/research/thesis/myCodes/thePolyalgorithm/timeSyncOutputs/harvest/'
 #        else:
 #        fig_path = '/home/rishu/research/thesis/myCodes/thePolyalgorithm/timeSyncOutputs/harvest/'
-
-        fig_path = '/home/rishu/research/thesis/presentations/rs_journal/' #paramPlay/'
-#        fig_name = 'all_' + str(time1) + "to12_" + str(pid) + '_nobias'+  '.png'
-#        fig_name =  'ltr_' + str(time1) + "to12_" + str(pid) + '_despike_tol' + str(landtrend_despike_tol) + \
-#                     '_pval' + str(landtrend_pval) + ',mu' + str(landtrend_mu) + \
-#                     ',trec' + str(landtrend_recovery_threshold) + '.png'
-#        fig_name =  'ewma_' + str(time1) + "to12_" + str(pid) +  \
-#                     '_lam' + str(ewma_lam) + '_L' + str(ewma_L) + \
-#                     '_pers' + str(ewma_persistence) + '.png'
-        fig_name =  'bf_' + str(time1) + "to12_" + str(pid) + '.eps' # \
-#                     '_lam' + str(ewma_lam) + '_L' + str(ewma_L) + \
-#                     '_pers' + str(ewma_persistence) + '.png'
-        full_fig_name = fig_path  + fig_name
-        fig.savefig(full_fig_name, format='eps')
+#
+#        fig_path = '/home/rishu/research/thesis/presentations/rs_journal/' #paramPlay/'
+##        fig_name = 'all_' + str(time1) + "to12_" + str(pid) + '_nobias'+  '.png'
+##        fig_name =  'ltr_' + str(time1) + "to12_" + str(pid) + '_despike_tol' + str(landtrend_despike_tol) + \
+##                     '_pval' + str(landtrend_pval) + ',mu' + str(landtrend_mu) + \
+##                     ',trec' + str(landtrend_recovery_threshold) + '.png'
+##        fig_name =  'ewma_' + str(time1) + "to12_" + str(pid) +  \
+##                     '_lam' + str(ewma_lam) + '_L' + str(ewma_L) + \
+##                     '_pers' + str(ewma_persistence) + '.png'
+#        fig_name =  'bf_' + str(time1) + "to12_" + str(pid) + '.eps' # \
+##                     '_lam' + str(ewma_lam) + '_L' + str(ewma_L) + \
+##                     '_pers' + str(ewma_persistence) + '.png'
+#        full_fig_name = fig_path  + fig_name
+#        fig.savefig(full_fig_name, format='eps')
 
     return bfast_brkpts[1:-1], ewma_brkpts[1:-1], ltr_brkpts[1:-1], polyAlgo_brkpts[1:-1], winner
 
@@ -459,87 +401,9 @@ def dist(A, B, toprint):
     return dAB
 
 
-def process_Jill_inputs(path = "/home/rishu/research/thesis/myCodes/thePolyalgorithm/datasets/"):
-  
-    location = "South"
-    mat_all_lines = {}
-    fn_rsac_relevant = path + location +"_RSAC_relevant_3bands.csv"
-    mat_all_lines = []
-    with open(fn_rsac_relevant, 'r') as f:
-#        first_line = f.readline()
-        for i, line in enumerate(f):
-            mat_all_lines.append(line)
-            pass
-
-    pixels_1637 = []
-    doing_pathrow = [1837]
-#    doing_pathrow = [4330, 4430]
-    for line in range(1,len(mat_all_lines)):
-        band_vals = mat_all_lines[line].strip().split(',')
-        pathrow_NDVI = band_vals[8]
-        if (int(pathrow_NDVI) in doing_pathrow):
-            pixels_1637.append(line)
-
-    nlcd_relevant = [41, 42, 43, 51, 52, 81, 82, 21, 22, 23, 24]
-#    with open("pixelsToCheck.csv", "w") as fh:
-    for line in pixels_1637:
-#        print line, ', ', mat_all_lines[line]
-        ############ all these variables were arguments for process_pixel #######
-        time1 = 2001
-        time2 = 2013 + 1   # stay same for all pixels. I've kept them here only to keep all parameters in one place
-        band1 = 'NDVI'
-        band2 = 'SWIR5'
-        band3 = 'SWIR7'
-        band_vals = mat_all_lines[line].strip().split(',')
-        pid = int(band_vals[1])
-        TCC1 = band_vals[2]
-        TCC2 = band_vals[3]
-        TCC_change = band_vals[4]
-        X11_LC_fmaj_T1 = int(band_vals[5])
-        X11_LC_fmaj_T2 = int(band_vals[6])
-        location = band_vals[7]
-        pathrow_ndvi = band_vals[8]
-        utm_ndvi = band_vals[9][3:]
-        pathrow_swir5 = band_vals[10]
-        utm_swir5 = band_vals[11][3:]
-        pathrow_swir7 = band_vals[12]
-        utm_swir7 = band_vals[13][3:]
-        
-        #######################################################################
-        if band1 == 'not available' or band2 == 'not available' or band3 == 'not available':
-            # something random
-            junk = 1
-        else:  # landtrendr runs into problem on line 211
-            if ((X11_LC_fmaj_T1 in nlcd_relevant) and (X11_LC_fmaj_T2 in nlcd_relevant) and \
-                (X11_LC_fmaj_T1 != X11_LC_fmaj_T2) ):
-                
-                fn_merged_csv_ndvi = "intersect_PI_" + location + "_" + pathrow_ndvi + "_UTM" + \
-                              utm_ndvi + "_NDVI_single_merged.csv"
-                vec_obs_original_ndvi, tyeardoy = data_from_csvFile(path, fn_merged_csv_ndvi, pid, time1, time2)
-                fn_merged_csv_swir5 = "intersect_PI_" + location + "_" + pathrow_swir5 + "_UTM" + \
-                              utm_swir5 + "_SWIR5_single_merged.csv"
-                vec_obs_original_swir5, tyeardoy = data_from_csvFile(path, fn_merged_csv_swir5, pid, time1, time2)
-                fn_merged_csv_swir7 = "intersect_PI_" + location + "_" + pathrow_swir7 + "_UTM" + \
-                              utm_swir7 + "_SWIR7_single_merged.csv"
-                vec_obs_original_swir7, tyeardoy = data_from_csvFile(path, fn_merged_csv_swir7, pid, time1, time2)
-                
-                if (len(tyeardoy) != len(vec_obs_original_ndvi)):
-                    continue
-                
-                vec_obs_original = [] 
-                vec_obs_original.append(vec_obs_original_ndvi)
-#                    vec_obs_original.append(vec_obs_original_swir5)
-#                    vec_obs_original.append(vec_obs_original_swir7)
-                pixel_info = [location, time1, pid, TCC_change, X11_LC_fmaj_T1, X11_LC_fmaj_T2, pathrow_ndvi]
-
-                process_pixel(tyeardoy, vec_obs_original, pixel_info)
-
-    return
-
-
 def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolyalgorithm/"):
     
-    fn_timeSync_pids = path + "timeSync_pids_harvest.csv"
+    fn_timeSync_pids = path + "timeSync_pids_change.csv"
     fn_timeSync_ts = path + 'conus_spectrals.csv'
     fn_timeSync_disturbance = path + 'ts_disturbance_segments.csv'
 
@@ -581,7 +445,27 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
     bf = 0
     ltr = 0
     nun = 0
-    for pixel in [16040026, 16037001, 16037027, 18031030, 16035005]:  #40027038, 38029024]:  #pixels_list:
+    num_change_pixels = 0
+    num_stable_pixels = 0
+    change_bf_says_change = 0
+    change_bf_says_stable = 0
+    change_ew_says_change = 0
+    change_ew_says_stable = 0
+    change_ltr_says_change = 0
+    change_ltr_says_stable = 0
+    change_poly_says_change = 0
+    change_poly_says_stable = 0
+    num_stable_pixels = 0
+    stable_bf_says_stable = 0
+    stable_bf_says_change = 0
+    stable_ew_says_stable = 0
+    stable_ew_says_change = 0
+    stable_ltr_says_stable = 0
+    stable_ltr_says_change = 0
+    stable_poly_says_stable = 0
+    stable_poly_says_change = 0
+    zero_reading_pixels = []
+    for pixel in pixels_list:  #40027038, 38029024]:  #pixels_list:
         # [11031001, 12030015, 13032007, 14031035]:  # urbanization
 #                  17036006, 13032007, 26041029, 42034039, 43031037, \
 #                  ]:  #15037026, 16041003,
@@ -606,19 +490,19 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
         vec_obs_original_ndvi, tyeardoy, changes = data_from_timeSyncCsvFile( \
                             path, mat_all_lines[my_pid], fn_timeSync_disturbance, my_pid, time1, time2)
 
-        print len(vec_obs_original_ndvi)
-        if (len(tyeardoy) != len(vec_obs_original_ndvi)):
+        if (len(tyeardoy) != len(vec_obs_original_ndvi)) or (len(tyeardoy) == 0):
+            zero_reading_pixels.append(my_pid)
             continue
 
         vec_obs_original = [] 
         vec_obs_original.append(vec_obs_original_ndvi)
         # vec_obs_original is a list of arrays. Each array cors to 1 band.
         pixel_info = [time1, my_pid]        
-        print my_pid, ', ', changes
+        print my_pid
         
         bfast_brkpts, ewma_brkpts, ltr_brkpts, polyAlgo_brkpts, winner = \
                 process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist_thresh)
-                
+
 #       ########## counting selections #########
         if winner == 'ew':
             ew += 1
@@ -637,7 +521,8 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
                 ct = element[2]
                 start_yr = int(element[0])
                 end_yr = int(element[1])
-                if ct == 'Harvest':  # we are not going to do any case of Sit. 
+                if ct != 'x':
+#                if ct == 'Harvest':  # we are not going to do any case of Sit. 
                                   # So, even if an Sit follows a Harvest, it
                                   # will not be included in ground_truth_bps
                                   # This will prevent overcounting Harvest+Sit events.
@@ -645,6 +530,57 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
                     num_true_brks += 1
             except:
                 num_true_brks += 0 # basically do nothing
+
+#       ########## counting change vs no change #########
+        if changes[0] > 0:
+            # timesync says there was a change
+            num_change_pixels += 1
+            # does bfast say so?
+            if len(bfast_brkpts) > 0:
+                # bf also says there was a change. So, success
+                change_bf_says_change += 1
+            else:
+                change_bf_says_stable += 1
+                
+            if len(ewma_brkpts) > 0:
+                change_ew_says_change += 1
+            else:
+                change_ew_says_stable += 1
+                
+            if len(ltr_brkpts) > 0:
+                change_ltr_says_change += 1
+            else:
+                change_ltr_says_stable += 1
+                
+            if len(polyAlgo_brkpts) > 0:
+                change_poly_says_change += 1
+            else:
+                change_poly_says_stable += 1
+                
+        if changes[0] == 0:
+            # timesync says pixel was stable
+            # does bfast say so
+            num_stable_pixels +=1
+            if len(bfast_brkpts) == 0:
+                # bf also says there was a change. So, success
+                stable_bf_says_stable += 1
+            else:
+                stable_bf_says_change += 1
+                
+            if len(ewma_brkpts) == 0:
+                stable_ew_says_stable += 1
+            else:
+                stable_ew_says_change += 1
+                
+            if len(ltr_brkpts) == 0:
+                stable_ltr_says_stable += 1
+            else:
+                stable_ltr_says_change += 1
+            
+            if len(polyAlgo_brkpts) == 0:
+                stable_poly_says_stable += 1
+            else:
+                stable_poly_says_change += 1
     
         bfast_predictions = set()
         for bp in bfast_brkpts:
@@ -660,9 +596,6 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
                                                # for just one event. Especially, with ltr.
                     break
         # did we miss a break suggested in timesync data?
-        print 'gth: ', ground_truth_bps
-        print 'bf: ', bfast_brkpts
-        print 'bf: ', bfast_predictions
         for gth_element in ground_truth_bps:
             found = False
             for j in range(gth_element[0], gth_element[1]+1):
@@ -757,6 +690,24 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
         fh.write('ew_TP = ' + str(ewma_true_positives) + '\n')
         fh.write('ltr_TP = ' + str(ltr_true_positives) + '\n')
         fh.write('poly_TP = ' + str(polyAlgo_true_positives) + '\n')
+        fh.write('num_change_pixels =' + str(num_change_pixels) + '\n')
+        fh.write('change_bf_says_change =' + str(change_bf_says_change) + '\n')
+        fh.write('change_bf_says_stable =' + str(change_bf_says_stable) + '\n')
+        fh.write('change_ew_says_change =' + str(change_ew_says_change) + '\n')
+        fh.write('change_ew_says_stable =' + str(change_ew_says_stable) + '\n')
+        fh.write('change_ltr_says_change =' + str(change_ltr_says_change) + '\n')
+        fh.write('change_ltr_says_stable =' + str(change_ltr_says_stable) + '\n')
+        fh.write('change_poly_says_change =' + str(change_poly_says_change) + '\n')
+        fh.write('change_poly_says_stable =' + str(change_poly_says_stable) + '\n')
+        fh.write('num_stable_pixels =' + str(num_stable_pixels) + '\n')
+        fh.write('stable_bf_says_stable =' + str(stable_bf_says_stable) + '\n')
+        fh.write('stable_bf_says_change =' + str(stable_bf_says_change) + '\n')
+        fh.write('stable_ew_says_stable =' + str(stable_ew_says_stable) + '\n')
+        fh.write('stable_ew_says_change =' + str(stable_ew_says_change) + '\n')
+        fh.write('stable_ltr_says_stable =' + str(stable_ltr_says_stable) + '\n')
+        fh.write('stable_ltr_says_change =' + str(stable_ltr_says_change) + '\n')
+        fh.write('stable_poly_says_stable =' + str(stable_poly_says_stable) + '\n')
+        fh.write('stable_poly_says_change =' + str(stable_poly_says_change) + '\n')
 #        fh.write('bf_FP = ' + str(bfast_false_positivies) + '\n')
 #        fh.write('ew_FP = ' + str(ewma_false_positivies) + '\n')
 #        fh.write('ltr_FP = ' + str(ltr_false_positivies) + '\n')
@@ -766,8 +717,10 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
     return
 
 
+    
 
-## collect all pids from conus_spextral.csv and write them to a separate file
+
+## collect all pids from conus_spextral.csv
 #fn = '/home/rishu/research/thesis/myCodes/thePolyalgorithm/conus_spectrals.csv'
 #px_list = []
 #with open(fn, 'r') as f:
@@ -781,11 +734,49 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
 ##        mat_all_lines.append(line)
 #        pass
 #f.close()
+
+# collect all pids from ts_disturbance_segments.csv. These are change pids.
+# write them to a separate file
+#fn = '/home/rishu/research/thesis/myCodes/thePolyalgorithm/ts_disturbance_segments.csv'
+#change_pid_list = []
+#with open(fn, 'r') as f:
+#    first_line = f.readline()
+#    for i, line in enumerate(f):
+#        this_line = line.strip().split(',')
+##        print this_line
+#        pid = int(this_line[0])
+#        if pid not in change_pid_list:
+#            change_pid_list.append(pid)
+#        pass
+#f.close()
 #
+## the pids present in timeSync_pids_change are stable pids
+## write them to a separate file
+#fn_change = '/home/rishu/research/thesis/myCodes/thePolyalgorithm/timeSync_pids_change.csv'
+#with open(fn_change, 'w') as fw:
+#    for pid in change_pid_list:
+#        fw.write(str(pid) + '\n')
+#fw.close()
+## the pids not present in timeSync_pids_change are stable pids
+## write them to a separate file
+#fn_stable = '/home/rishu/research/thesis/myCodes/thePolyalgorithm/timeSync_pids_stable.csv'
+#with open(fn_stable, 'w') as fw:
+#    for pid in px_list:
+#        if pid in change_pid_list:
+#            a = 1
+#        else:
+#            fw.write(str(pid) + '\n')
+#fw.close()
+
+# writing all timeSync pids to a separate file.
 #with open('/home/rishu/research/thesis/myCodes/thePolyalgorithm/timeSync_pids.csv', 'w') as fw:
 #    for pid in px_list:
 #        fw.write(str(pid) + '\n')
 #fw.close()
+
+# the pids not present in ts_disturbance_segments.csv are stable pixels.
+# write them to a saparate file.
+
 
 ## collect all forest (or non-forest) pids from ts_disturbance_segments.csv and write them to a separate file
 #fn = '/home/rishu/research/thesis/myCodes/thePolyalgorithm/ts_disturbance_segments.csv'
