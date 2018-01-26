@@ -11,19 +11,10 @@ This version created on Oct 6 19:18:41 2016.
 """
 
 #I'm starting this code from rs_map_v10.py
-#-- The first change I'm making to this code is removing the csv file 
-#   input capabilities and replacing those with sample input written in 
-#   functions. Eg. harvest().
 #-- This is the time from where on, bfast, ewmacd, and landtrendr will grow 
 #   together in sync with each other. They will all have same inputs, I will
 #   compare and contrast their methodologies, result metrics to develop my 
 #   polyalgorithm. 
-#-- In the next couple of days, I will also include the ability
-#   to read input directly from binary files, just like my fortran code is 
-#   doing, already.
-#-- The version in the folder thePolyalgorithm is will more or less be an exact
-#   copy of this, just like bfast and landtrendr, except, of course, the 
-#   common input from the wrapper function.
 
 import numpy as np
 import pywt
@@ -43,7 +34,6 @@ NA :  missing data
 3  :  snow
 4  :  cloud
 """
-#@profile
 def lsfit(t_loc, u, K, xbarlimit1):  #, plot):
     #t_loc is the training t
 
@@ -74,8 +64,6 @@ def lsfit(t_loc, u, K, xbarlimit1):  #, plot):
 
     return alpha_star
 
-
-#@profile
 def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshold):
 #t_loc is the full t (i.e., the present timepoints)
     
@@ -104,7 +92,6 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
     tau1 = xbarlimit1 * sigma2
     tau2 = xbarlimit2 * sigma2
     Ihat =  np.asarray([s for s in range(M) if ((np.abs(Estar_alphastar[s]) < tau1) and (D[s] > lowthreshold)) ])  #2nd condition redundant
-#    Ihat = np.where(Estar_alphastar < tau1)[0]
     if (len(Ihat) < 2*K + 1):
         nullFlag = True
         Estar_alphastar = [-2222] * S
@@ -125,8 +112,6 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
     else:
         Ibar = []
 
-#    tmp = [i for i in range(0, M)]
-#    Ihat = np.intersect1d(Ibar, tmp)    
     Estar_alphastar_Ihat = Estar_alphastar[Ihat] #[Estar_alphastar[i] for i in Ihat]
     sigma_Ihat = np.sqrt(float(len(Ihat))/float(len(Ihat)-1)) * np.std(Estar_alphastar_Ihat)
     
@@ -142,10 +127,6 @@ def get_control_limits(sigma, L, lamd, mu, len_Ibar):
     sl = sigma * L
     f = lamd/(2 - lamd)
     a = 1 - lamd
-#    for i in range(len_Ibar):
-#        p = pow(a, 2*(i+1))
-#        b = 1 - p
-#        tau[i] = mu + sl * np.sqrt(f * b)
     tau = list(map(lambda x: mu + sl * np.sqrt(f * (1 - pow(a, 2*(x+1)))),  tau))
     return tau
 
@@ -267,17 +248,14 @@ def summarize(jump_vals_presSten, presInd, num_obs, summaryMethod, tyeardoy):
             for i in range(beginIdx, endIdx+1):
                 ewma_summary[i] = mean
             beginIdx = endIdx+1
-#            print 'starting year=', tyeardoy[beginIdx,0]
             endIdx = max([i for i in range(num_obs) if \
                                tyeardoy[i, 0] == tyeardoy[beginIdx,0]])
 
-#            print 'ending year =', tyeardoy[endIdx, 0]
     if summaryMethod == 'reduced_wiggles':
         max_val = np.max(ewma_summary)
         min_val = np.min(ewma_summary)
         range_vals =np.abs(max_val - min_val)
         for i in range(1, num_obs):
-#            print range_vals
             if np.abs(ewma_summary[i] - ewma_summary[i-1]) < 0.33*range_vals:
                 ewma_summary[i] = ewma_summary[i-1]
 
@@ -291,20 +269,6 @@ def summarize(jump_vals_presSten, presInd, num_obs, summaryMethod, tyeardoy):
         if ind == num_obs-1:
             return
 
-        # trying to use waveliets here to extract discontinuity
-#        (ca, cd) = pywt.dwt(ewma_summary, 'haar')
-#        wv_coeffs = pywt.wavedec(ewma_summary, 'db4', level=3)
-#        [ca3, cd3, cd2, cd1] = wv_coeffs
-#        if (np.mod(num_obs, 2) == 0):
-#            cd1_zpadded = [cd[i] for i in range(num_obs/2)] + [0 for i in range()] [cd[num_obs/2]] + [cd[i] for i in range(-num_obs/2 + 1, 0)]
-#        cd_thresh = np.zeros((cd.shape))  #pywt.thresholding.soft(cd, np.std(cd)/2)
-#        with open('ltr_python_output.csv', 'w') as fh:
-#            fh.write('len ewma summary:' + str(len(ewma_summary)) + '\n')
-#            fh.write( 'approx:'+ ' '.join([str(i) for i in ca]) + '\n' ) 
-#            fh.write( 'detail:' + ' '.join([str(i) for i in cd]) + '\n')
-#        fh.close
-#        ewma_sum_rec = pywt.idwt(np.zeros((cd.shape)), cd, 'db4')
-
         for i in range(1,num_obs):
             if ewma_summary[i] != ewma_summary[i-1]:
                     brkpt.append(i-1)
@@ -315,11 +279,7 @@ def summarize(jump_vals_presSten, presInd, num_obs, summaryMethod, tyeardoy):
 
     return brkpt, ewma_summary, brkpt_summary
     
-#def postprocess(ewma_summary):
-    
-    
 
-#@profile
 def ewmacd(tyeardoy, vec_obs, presInd, \
            K, xbarlimit1, xbarlimit2,  \
            lowthreshold, trainingStart, trainingEnd, mu, L, lam,  \
