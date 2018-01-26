@@ -6,8 +6,6 @@ Original code is in from /bfast/python/bfast.py
 That code was running complete n all. 
 
 This version created on Thu Oct 6 13:10:33 2016.
-The first change here is that I'm removing main() and
-adapting bast() so that it can be called from poly.py.
 @author: rishu
 """
 
@@ -186,10 +184,9 @@ def calcPValue(x, method, k, h, fnal):
     
     return pval
     
-
 def recresids(t, u, begin_idx, model, deg):
 
-    # remember, unlike Fortran, indices here will start from 0. 
+    # remember, in Python, indices here will start from 0. 
     # begin_idx denotes the first point for which the residual will be calculated.
     # So remember use begin_idx as one less than what we were using in Fortran.
     # Also, begin_idx is only wrt the subset array that has been passed in.
@@ -208,9 +205,8 @@ def recresids(t, u, begin_idx, model, deg):
             X[:, 2*j-1] = np.asarray([np.cos(j * t[i]) for i in range(0,Sfinal)])
             X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,Sfinal)])
     else:
-        print "model not supported"
-    
-    
+        print "model not supported"    
+        
     check = True
     recres = [ 0 for i in range(0, Sfinal) ]
     # begin_idx is the firstmost index where the residual will be calculated.
@@ -251,7 +247,6 @@ def recresids(t, u, begin_idx, model, deg):
 
 def getRSStri(t, u, model, h, K):
     
-    # what is h? breakpoint spacing?
     # remember, unlike Fortran, indices here will start from 0. 
     # So remember use begin_idx as one less than what we were using in Fortran.
     # Basically, recresid will get filled from idx=ncols to idx=Sfinal for linear regression.
@@ -646,29 +641,7 @@ def bfast(tyeardoy, vec_obs_all, \
             
     brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGlobalIndex]
     brkpt_summary = [0 for i in range(num_obs)]
-#    print 'bf brkpts:', brkPtsGlobalIndex[1:]
     for i in brkPtsGlobalIndex[1:-1]:
         brkpt_summary[i] = vecTrendFitFull[i] - vecTrendFitFull[i-1]
 
     return brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary
-
-#    43265765020004 success
-#    87095642020004 success
-#    216219303020004 success
-#    216219592020004 success
-#    
-
-#   87095310020004  utter failure when 3 breakpoints are used. two makes it better but not a whole lot.
-
-#   216220323020004  study sensitivity to number of breaks
-#   216219091020004    --- do --- (last loss gets cptured on using 3 brkpts)
-#   216219752020004    hige difference in trend using 2 vs 3 brkpts
-
-# computationally expensive
-# number of brkpts how to decide? brkpts often get placed at unexpected locations.
-#           and number of breakpoints limits how many phenomenon can be captured
-# it is hard to find instances where BFAST did not capture the significant events (or,
-#           the two most significant event/trends). however, beyond that, BFAST seems
-#           to miss out on more subtle trends
-# sharp recovery cannot be interpreted. no check on such instances.
-# discontinuous nature of the fit --- other than 'events', nothing in nature is discontinuous.
