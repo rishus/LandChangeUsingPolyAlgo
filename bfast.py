@@ -148,7 +148,7 @@ def OLSMosum(t, obs, model, h, K):
 
 def calcPValue(x, method, k, h, fnal):
     #k is the number of columns in the 'process'
-    #h ... i dont know. looks like some parameter related to grid spacing
+    #h ... is a parameter related to grid spacing
             
     if (method == "brownian bridge increments"):
         if (k > 6):
