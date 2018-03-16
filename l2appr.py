@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Aug 10 13:10:05 2017
-
 @author: rishu
 """
 import numpy as np
@@ -60,26 +59,13 @@ def bsplvb(t, jhigh, index, x, left_fort):
                                                        # knot is stored at index left - 1, because 
                                                        # indices in python start from 0.
                 deltal[j-1] = x - t[left_fort + 1 -j -1]
-#                with open("ltr_python_output.csv", "a") as fh:
-#                    fh.write('deltar: ' + '  '.join([str(i) for i in deltar[0:5]]) +'\n ')
-#                    fh.write('deltal: ' + '  '.join([str(i) for i in deltal[0:5]]) +'\n ')
-#                fh.close()
                 saved = 0.0
-                for i in range(1,j+1):  # 
-#                    with open("ltr_python_output.csv", "a") as fh:
-#                        fh.write('i = '+str(i)+'jp1-1 = '+ str(jp1-i)+'\n')
-#                        fh.write('deltar(i) =' + str(deltar[i-1]) + ', deltal =' + str(deltal[jp1-i-1]) +'\n ')
-#                        fh.write('deltar[i-1]+deltal[jp1-i-1] =' + str((deltar[i-1] + deltal[jp1-i-1])) + '\n')
-#                        fh.write('biatx['+str(i-1) + '] =' + str(biatx[i-1]) + '\n')
-#                    fh.close()
+                for i in range(1,j+1):
                     term = float(biatx[i-1]) / (float(deltar[i-1]) + float(deltal[jp1-i-1]))
                     biatx[i-1] = saved + float(deltar[i-1]) * float(term)
                     saved = deltal[jp1-i-1] * term
                     
                 biatx[jp1-1] = saved
-#                with open("ltr_python_output.csv", "a") as fh:
-#                    fh.write( 'x_ll =' + str(x) + ', biatx: ' + '  '.join([str(bx) for bx in biatx]) +'\n ')
-#                fh.close()
                 j = j+1
     else:  # if index == 2
     # TODO: this part needs to be checked for correctness.
@@ -128,8 +114,6 @@ def l2appr(n_dim, K, vec_timestamps, vec_obs, numObs, knots, weight):
     # If we identify an index 'left' st. t[left] < x < t[left+1], then
     # x is actually in between t_{left} and t_{left+1}
     for ll in range(0, numObs):
-#        print 'll =', ll, 'x_ll =', vec_timestamps[ll], 
-#        print 'knots[left_py]', knots[left_py], 'vec_timestamps[ll] >= knots[left_py]', vec_timestamps[ll] >= knots[left_py]
         # corner case
         if (left_py == n_dim-1) or (vec_timestamps[ll] < knots[left_py+1]):
             # we want: vec_timestamps(ll) \in (knots(left_fort) , knots(left_fort+1))
@@ -213,16 +197,8 @@ def l2appr(n_dim, K, vec_timestamps, vec_obs, numObs, knots, weight):
 #       IT TO SOLVE THE NORMAL EQUATIONS
 #         C*X = BCOEF
 #       FOR X , AND STORE X IN BCOEF
-#    print 'In l2appr'
-#    print  'n_dim =', n_dim
-#    with open("ltr_python_output.csv", "a") as fh:
-#        fh.write('writing Q:' + '\n')
-#        for i in range(K):
-#            fh.write('  '.join([str(Q[i, col]) for col in range(n_dim)] ) + '\n ')
-#    fh.close()
     cb = la.cholesky_banded(Q, overwrite_ab=False, lower=True, check_finite=True)
     bcoeff = la.cho_solve_banded((cb, True), bcoeff, overwrite_b=True, check_finite=True)
-
 
     return bcoeff    
 
@@ -255,8 +231,7 @@ def bvalue(x, bcoef, jderiv, K, knots, n_dim):
             break
         
         left_py += 1
-        
-            
+
     if (left_py < 0) or (left_py >= n_dim+K) or (knots[left_py] >= knots[left_py+1]):
         bval = bcoef[left_py]
         return bval
