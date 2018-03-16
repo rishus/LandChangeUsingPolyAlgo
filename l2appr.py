@@ -224,7 +224,7 @@ def bvalue(x, bcoef, jderiv, K, knots, n_dim):
 #   So, for the right end point, I will look for the interval that satisfies
 #       T(I) < x <= T(I+1)
     # Locate left st. vec_timestamps(ll) \in (knots(left_fort) , knots(left_fort+1))
-    # i.e., vec_timestamps(ll) \in (knots(left_py - 1) , knots(left_py))
+    # i.e., vec_timestamps(ll) \in (knots(left_py - 1) , knots(left_py)) 
     left_py = K-1
     while ((x >= knots[left_py+1]) or (knots[left_py] >= knots[left_py+1])):
         if (left_py+1 >= n_dim):
