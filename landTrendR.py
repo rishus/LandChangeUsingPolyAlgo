@@ -23,7 +23,6 @@ def regress(t, u, model, K):
         ncols = 2*K+1
     else:
         print 'model not supplied'
-    
 
     X = np.zeros((M, ncols))
     X[:,0] = 1
@@ -36,8 +35,7 @@ def regress(t, u, model, K):
             X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,M)])
     else:
         print "model not supported"
-        
-    
+
     if (np.abs(np.linalg.det(np.dot(np.transpose(X), X))) < 0.001):
         alpha_star = []
         return alpha_star
@@ -46,7 +44,6 @@ def regress(t, u, model, K):
     fit = np.dot(X,alpha)
     
     return alpha, fit
-
 
 def despike(vec_timestamps, vec_obs, despike_tol):
 
@@ -87,7 +84,6 @@ def despike(vec_timestamps, vec_obs, despike_tol):
 
     return vec_obs_updated
     
-
 def scoreSegments(vec_timestamps, vec_obs, vertices, currNumVerts):
     
     segmentScores = []
@@ -700,23 +696,101 @@ def takeOutWeakest_alternate(vec_timestamps, vec_obs, v, vertVals):
         
     return updatedVerts
     
+#def getDataSubset(tyeardoy, vec_timestamps_edited, vec_obs_all, presInd, \
+#                  doy_start, doy_end):
+#    
+#    # presInd is a numpy array.
+#    # vec_obs_all is also a numpy array.
+#    # also get 'all summer indices'
+#    tyeardoy_idxs = np.where(np.logical_and(doy_start <= tyeardoy[:,1], \
+#                                                tyeardoy[:,1]< doy_end))[0]
+#                                            
+#    summer_pres_indices = list(set(tyeardoy_idxs).intersection(presInd))
+#    summer_pres_indices.sort()
+#    vec_timestamps_edited_sub = vec_timestamps_edited[summer_pres_indices]
+#    vec_obs_all_sub = vec_obs_all[summer_pres_indices]
+#    
+#    return vec_timestamps_edited_sub, vec_obs_all_sub, np.asarray(summer_pres_indices)
 
-def getDataSubset(tyeardoy, vec_timestamps_edited, vec_obs_all, presInd, \
-                  doy_start, doy_end):
+def get_alternate_models(vec_timestamps, vec_obs_despiked,\
+                         newInitVerts, best_model_proportion, use_fstat, pval, \
+                         recovery_threshold ):
     
-    # presInd is a numpy array.
-    # vec_obs_all is also a numpy array.
-    # also get 'all summer indices'
-    tyeardoy_idxs = np.where(np.logical_and(doy_start <= tyeardoy[:,1], \
-                                                tyeardoy[:,1]< doy_end))[0]
-                                            
-    summer_pres_indices = list(set(tyeardoy_idxs).intersection(presInd))
-    summer_pres_indices.sort()
-    vec_timestamps_edited_sub = vec_timestamps_edited[summer_pres_indices]
-    vec_obs_all_sub = vec_obs_all[summer_pres_indices]
+    my_alternate_models = []
     
-    return vec_timestamps_edited_sub, vec_obs_all_sub, np.asarray(summer_pres_indices)
+    # Step 4': Fit trajectory using the marquardt approach. That's a global method in contrast
+    #         to the above local method. (Actually ... this code uses Splines, instead.)
+    model1_alternate = findBestTrace_alternate(vec_timestamps, vec_obs_despiked, newInitVerts)
+    nSegs = len(newInitVerts) - 1
+    nParams = nSegs
+    model1_stats = calcFittingStats(vec_obs_despiked, model1_alternate['yFitVals'],  nParams)
+    this_alternate_model = {'yfit':  model1_alternate['yFitVals'],
+              'vertices': model1_alternate['vertices'],
+              'fstat':  model1_stats['fstat'],
+              'p_of_f':  model1_stats['p_of_f'],
+               'aicc': model1_stats['aicc'],
+              'vertYVals': model1_alternate['vertYVals'],
+              'slopes' : model1_alternate['slopes']}
 
+    my_alternate_models.append(this_alternate_model)
+
+    prev_model_index = 0
+    this_model_index = 1
+    while (nSegs >1 ):
+
+        updatedVertices_alternate = takeOutWeakest_alternate(vec_timestamps, vec_obs_despiked,
+                                      my_alternate_models[prev_model_index]['vertices'],
+                                      my_alternate_models[prev_model_index]['vertYVals'])
+
+        updatedModel_alternate = findBestTrace_alternate(vec_timestamps, \
+                                                         vec_obs_despiked, \
+                                                         updatedVertices_alternate)
+
+        nSegs = len(updatedModel_alternate['vertices']) - 1
+        nParams = nSegs
+        updatedModelStats_alternate = calcFittingStats(vec_obs_despiked, updatedModel_alternate['yFitVals'], nParams)
+        this_alternate_model = {'yfit':  updatedModel_alternate['yFitVals'],
+                      'vertices': updatedModel_alternate['vertices'],
+                      'fstat':  updatedModelStats_alternate['fstat'],
+                      'p_of_f':  updatedModelStats_alternate['p_of_f'],
+                      'aicc': updatedModelStats_alternate['aicc'],
+                      'vertYVals': updatedModel_alternate['vertYVals'],
+                      'slopes' : updatedModel_alternate['slopes']}
+        
+        my_alternate_models.append(this_alternate_model)
+        prev_model_index +=1
+        this_model_index +=1
+
+    #Pick best model
+    accepted = False
+    all_fstats = [my_alternate_models[i]['fstat'] for i in range(len(my_alternate_models))]  #becuz i need to do np.where on this.
+    num_models_evaluated = 0
+    while (accepted == False) and (num_models_evaluated < len(my_alternate_models)): #len(my_models) = \mu
+        num_models_evaluated += 1
+        #pickBestModel will choose the model with lowest p of F-statistic
+        bestModelInd = pickBestModel(my_alternate_models, best_model_proportion, use_fstat, pval)
+        if bestModelInd != -1:
+            #check on the slopes: if the model has scaled slopes steeper than rec_thresh, 
+            #we dont accept that model.
+            accept = check_slopes(my_alternate_models[bestModelInd], recovery_threshold)
+            if accept == 'No':
+                my_alternate_models[bestModelInd]['p_of_f'] = 100000
+                my_alternate_models[bestModelInd]['fstat'] = 0
+                my_alternate_models[bestModelInd]['aicc'] = 0
+                accepted = False  #redundant
+            else:  #if accepted = 'yes' OR if none of the models is acceptable, then move on
+                accepted = True
+        else:
+            # just use a single segment. Use the model that had minimum value of fstat
+            bestModelInd = all_fstats.index(min(all_fstats))
+            my_alternate_models[bestModelInd]['p_of_f'] = 1 #why are we resetting here?
+            my_alternate_models[bestModelInd]['slopes'] = [0]
+            mean_val = np.mean(vec_obs_despiked)
+            tmp = my_alternate_models[bestModelInd]['vertYVals']
+            my_alternate_models[bestModelInd]['vertYVals'] = [mean_val]*len(tmp)
+            accepted = True
+    
+    return my_alternate_models, bestModelInd
 
 def landTrend(tyeardoy, vec_obs_all, presInd, \
               ewma_trainingStart, ewma_trainingEnd, ewma_lowthreshold, ewma_K,\
@@ -863,87 +937,15 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
     #############################################################################
     #############################################################################
 
-    #If no good fit found, try the MPFITFUN approach
+    #If no good fit found, try the MPFITFUN approach  (we are using Splines, instead!)
     if (my_models[bestModelInd]['p_of_f'] > pval):
         # redo the whole model generation part, this time with Levenberg-Marquardt algorithm based
         # fitting.
         # restart from vertices determined by vetVerts3
         # i.e., the vertices POST- cullByAngleChange.
-
-        my_alternate_models = []
-        
-        # Step 4: Fit trajectory using the marquardt approach. That's a global method in contrast
-        #         to the above local method.
-        model1_alternate = findBestTrace_alternate(vec_timestamps, vec_obs_despiked, newInitVerts)
-        nSegs = len(newInitVerts) - 1
-        nParams = nSegs
-        model1_stats = calcFittingStats(vec_obs_despiked, model1_alternate['yFitVals'],  nParams)
-        this_alternate_model = {'yfit':  model1_alternate['yFitVals'],
-                  'vertices': model1_alternate['vertices'],
-                  'fstat':  model1_stats['fstat'],
-                  'p_of_f':  model1_stats['p_of_f'],
-                   'aicc': model1_stats['aicc'],
-                  'vertYVals': model1_alternate['vertYVals'],
-                  'slopes' : model1_alternate['slopes']}
-
-        my_alternate_models.append(this_alternate_model)
-
-        prev_model_index = 0
-        this_model_index = 1
-        while (nSegs >1 ):
-
-            updatedVertices_alternate = takeOutWeakest_alternate(vec_timestamps, vec_obs_despiked,
-                                          my_alternate_models[prev_model_index]['vertices'],
-                                          my_alternate_models[prev_model_index]['vertYVals'])
-
-            updatedModel_alternate = findBestTrace_alternate(vec_timestamps, \
-                                                             vec_obs_despiked, \
-                                                             updatedVertices_alternate)
-
-            nSegs = len(updatedModel_alternate['vertices']) - 1
-            nParams = nSegs
-            updatedModelStats_alternate = calcFittingStats(vec_obs_despiked, updatedModel_alternate['yFitVals'], nParams)
-            this_alternate_model = {'yfit':  updatedModel_alternate['yFitVals'],
-                          'vertices': updatedModel_alternate['vertices'],
-                          'fstat':  updatedModelStats_alternate['fstat'],
-                          'p_of_f':  updatedModelStats_alternate['p_of_f'],
-                          'aicc': updatedModelStats_alternate['aicc'],
-                          'vertYVals': updatedModel_alternate['vertYVals'],
-                          'slopes' : updatedModel_alternate['slopes']}
-            
-            my_alternate_models.append(this_alternate_model)
-            prev_model_index +=1
-            this_model_index +=1
-
-        #Pick best model
-        accepted = False
-        all_fstats = [my_alternate_models[i]['fstat'] for i in range(len(my_alternate_models))]  #becuz i need to do np.where on this.
-        num_models_evaluated = 0
-        while (accepted == False) and (num_models_evaluated < len(my_alternate_models)): #len(my_models) = \mu
-            num_models_evaluated += 1
-            #pickBestModel will choose the model with lowest p of F-statistic
-            bestModelInd = pickBestModel(my_alternate_models, best_model_proportion, use_fstat, pval)
-            if bestModelInd != -1:
-                #check on the slopes: if the model has scaled slopes steeper than rec_thresh, 
-                #we dont accept that model.
-                accept = check_slopes(my_alternate_models[bestModelInd], recovery_threshold)
-                if accept == 'No':
-                    my_alternate_models[bestModelInd]['p_of_f'] = 100000
-                    my_alternate_models[bestModelInd]['fstat'] = 0
-                    my_alternate_models[bestModelInd]['aicc'] = 0
-                    accepted = False  #redundant
-                else:  #if accepted = 'yes' OR if none of the models is acceptable, then move on
-                    accepted = True
-            else:
-                # just use a single segment. Use the model that had minimum value of fstat
-                bestModelInd = all_fstats.index(min(all_fstats))
-                my_alternate_models[bestModelInd]['p_of_f'] = 1 #why are we resetting here?
-                my_alternate_models[bestModelInd]['slopes'] = [0]
-                mean_val = np.mean(vec_obs_despiked)
-                tmp = my_alternate_models[bestModelInd]['vertYVals']
-                my_alternate_models[bestModelInd]['vertYVals'] = [mean_val]*len(tmp)
-                accepted = True            
-
+        my_alternate_models, bestModelInd = get_alternate_models(vec_timestamps, vec_obs_despiked,\
+                                              newInitVerts, best_model_proportion, use_fstat, pval, \
+                                              recovery_threshold )
         my_models = copy.deepcopy(my_alternate_models)
 
     # get fit on the whole interval
@@ -1008,7 +1010,6 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
         vecTrendFitFull[i] = slope * vec_timestamps_edited[i] + intercept
     
     brkpt_summary = [0.0001 for i in range(num_obs)]
-#    print 'ltr brkpts:' , brkptsGI[1:]
     for i in brkptsGI[1:-1]:
         brkpt_summary[i] = 1.0  #vecTrendFitFull[i] - vecTrendFitFull[i-1]
 
