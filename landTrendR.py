@@ -37,8 +37,9 @@ def regress(t, u, model, K):
         print "model not supported"
 
     if (np.abs(np.linalg.det(np.dot(np.transpose(X), X))) < 0.001):
+        fit = np.zeros((M,))
         alpha_star = []
-        return alpha_star
+        return alpha_star, fit
 
     alpha = np.linalg.solve(np.dot(np.transpose(X), X), np.dot(np.transpose(X), u))
     fit = np.dot(X,alpha)
