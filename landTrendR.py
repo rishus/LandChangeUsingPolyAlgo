@@ -14,37 +14,37 @@ import l2appr as myb
 import copy
 #import os
 
-def regress(t, u, model, K):
-    
-    M = len(t)
-    if (model == 'linear'):
-        ncols = 2
-    elif (model == "harmon"):
-        ncols = 2*K+1
-    else:
-        print 'model not supplied'
-
-    X = np.zeros((M, ncols))
-    X[:,0] = 1
-        
-    if (model == 'linear'):
-        X[:, 1] = t
-    elif (model == 'harmon'):
-        for j in range(1, K+1):
-            X[:, 2*j-1] = np.asarray([np.cos(j * t[i]) for i in range(0,M)])
-            X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,M)])
-    else:
-        print "model not supported"
-
-    if (np.abs(np.linalg.det(np.dot(np.transpose(X), X))) < 0.001):
-        fit = np.zeros((M,))
-        alpha_star = []
-        return alpha_star, fit
-
-    alpha = np.linalg.solve(np.dot(np.transpose(X), X), np.dot(np.transpose(X), u))
-    fit = np.dot(X,alpha)
-    
-    return alpha, fit
+#def regress(t, u, model, K):
+#    
+#    M = len(t)
+#    if (model == 'linear'):
+#        ncols = 2
+#    elif (model == "harmon"):
+#        ncols = 2*K+1
+#    else:
+#        print 'model not supplied'
+#
+#    X = np.zeros((M, ncols))
+#    X[:,0] = 1
+#
+#    if (model == 'linear'):
+#        X[:, 1] = t
+#    elif (model == 'harmon'):
+#        for j in range(1, K+1):
+#            X[:, 2*j-1] = np.asarray([np.cos(j * t[i]) for i in range(0,M)])
+#            X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,M)])
+#    else:
+#        print "model not supported"
+#
+#    if (np.abs(np.linalg.det(np.dot(np.transpose(X), X))) < 0.001):
+#        fit = np.zeros((M,))
+#        alpha_star = []
+#        return alpha_star, fit
+#
+#    alpha = np.linalg.solve(np.dot(np.transpose(X), X), np.dot(np.transpose(X), u))
+#    fit = np.dot(X,alpha)
+#    
+#    return alpha, fit
 
 def despike(vec_timestamps, vec_obs, despike_tol):
 
@@ -938,7 +938,7 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
     #############################################################################
     #############################################################################
 
-    #If no good fit found, try the MPFITFUN approach  (we are using Splines, instead!)
+    #If no good fit found, try the MPFITFUN approach (we are using Splines, instead!)
     if (my_models[bestModelInd]['p_of_f'] > pval):
         # redo the whole model generation part, this time with Levenberg-Marquardt algorithm based
         # fitting.
@@ -973,8 +973,7 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
             continue
         else:
             # locate the interval in which this x lies.
-            while ((vec_timestamps_edited[i] >= vec_timestamps[vertices[right]])): #and \
-#                   (vec_timestamps[my_models[bestModelInd]['vertices'][right]] < num_obs)):
+            while ((vec_timestamps_edited[i] >= vec_timestamps[vertices[right]])):
                 left += 1
                 right += 1
                 if right >= numVerts-1:
@@ -988,7 +987,7 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
             vecTrendFitFull[i] = (float(y2-y1)/float(x2-x1))* \
                             (vec_timestamps_edited[i] - x1) + y1
 
-    # the right end
+    # getting values for points at the right end
     x1 = vec_timestamps[vertices[left]]
     x2 = vec_timestamps[vertices[right]]
     y1 = my_models[bestModelInd]['vertYVals'][left]
@@ -999,7 +998,7 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
     for i in range(summer_pres_indices[-1]+1, num_obs):
         vecTrendFitFull[i] = slope * vec_timestamps_edited[i] + intercept
 
-    # the left end
+    # getting values for points at the left end
     x1 = vec_timestamps[vertices[0]]
     x2 = vec_timestamps[vertices[1]]
     y1 = my_models[bestModelInd]['vertYVals'][0]
