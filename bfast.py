@@ -613,7 +613,7 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
         else:
             # use present indices to get fit. project on ALL indices
             vecTrendFitFull[startPoint:endPoint] = linCoefs[i][0] + linCoefs[i][1]*vec_timestamps_edited[startPoint:endPoint]
-            
+
     brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGlobalIndex]
     brkpt_summary = [0 for i in range(num_obs)]
     for i in brkPtsGlobalIndex[1:-1]:
