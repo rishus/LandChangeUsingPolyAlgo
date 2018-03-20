@@ -15,37 +15,6 @@ import copy
 #import os
 from commons import regress
 
-#def regress(t, u, model, K):
-#    
-#    M = len(t)
-#    if (model == 'linear'):
-#        ncols = 2
-#    elif (model == "harmon"):
-#        ncols = 2*K+1
-#    else:
-#        print 'model not supplied'
-#
-#    X = np.zeros((M, ncols))
-#    X[:,0] = 1
-#
-#    if (model == 'linear'):
-#        X[:, 1] = t
-#    elif (model == 'harmon'):
-#        for j in range(1, K+1):
-#            X[:, 2*j-1] = np.asarray([np.cos(j * t[i]) for i in range(0,M)])
-#            X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,M)])
-#    else:
-#        print "model not supported"
-#
-#    if (np.abs(np.linalg.det(np.dot(np.transpose(X), X))) < 0.001):
-#        fit = np.zeros((M,))
-#        alpha_star = []
-#        return alpha_star, fit
-#
-#    alpha = np.linalg.solve(np.dot(np.transpose(X), X), np.dot(np.transpose(X), u))
-#    fit = np.dot(X,alpha)
-#    
-#    return alpha, fit
 
 def despike(vec_timestamps, vec_obs, despike_tol):
     
