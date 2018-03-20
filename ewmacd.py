@@ -36,6 +36,25 @@ NA :  missing data
 """
 def lsfit(t_loc, u, K, xbarlimit1):  #, plot):
     #t_loc is the training t
+    """
+    Least squares calculation for Step 1 of the pseudocode.
+    
+    Note that there are two steps of regression: First, regression is done over all (available)
+    training data. Then, 'outliers' are filtered out and regression is done again on the 
+    outlier free training data.
+    
+    Inputs:
+        t_loc:       x-coordinates
+        u:           y-coordinates (observations)
+        K:           number of harmonics
+        xbarlimit1:  parameter to determine 'outliers'.
+                     (If the pointwise error is greater than this many standard deviations,
+                     that point is considered an outlier.)
+    
+    Output:
+        alpha_star:   numpy array of 2K+1 coefficents.
+    
+    """
 
     M = len(u)
     X = np.zeros((M, 2*K + 1))
@@ -66,6 +85,33 @@ def lsfit(t_loc, u, K, xbarlimit1):  #, plot):
 
 def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshold):
 #t_loc is the full t (i.e., the present timepoints)
+    """
+    Residuals calculation for Step 1 of the pseudocode.
+    
+    Inputs:
+        alpha_star:        refined coefficients determined with repeated regression
+        t_loc:             numpy array of x-coordinates
+        D:                 numpy array of observations
+        u:                 training period observations
+        xbarlimit1:        parameter to determine 'outliers' in the initial phase of determining 
+                           refined coefficients.
+        xbarlimit2:        Parameter for calculating the threshold to determine outliers
+                           when refined coefficients are being used.
+        
+    
+    Outputs:
+        Ibar:              list
+                           of indices of outlier-free time series
+        sigma_Ihat:        scalar. 
+                           standard deviation of outlier-free training data errors
+        nullFlag:          Booloean.
+                           True if further processing cannot be carried out. (E.g., if outlier-free-training data 
+                           is of length less than 2K+1).
+                           False otherwise.
+        Estar_alphastar:   numpy array 
+                           containing residuals (errors) for the entire time series
+    
+    """
     
     nullFlag = False
     S = len(D)
@@ -122,6 +168,18 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
 #@profile    
 def get_control_limits(sigma, L, lamd, mu, len_Ibar):
     
+    """
+    Step 2 of the pseudocode.
+    
+    A control chart is built.
+    Inputs:
+        sigma, L, lamd, mu, |\bar{I}|:  Statistical information about the 'outlier-processed' timeseries.
+
+    Outputs:
+        tau:    control chart limits vector.
+        
+    """
+    
     #tau = [0] * len_Ibar #for i in range(len_Ibar)]
     tau  = np.arange(len_Ibar)
     sl = sigma * L
@@ -133,16 +191,41 @@ def get_control_limits(sigma, L, lamd, mu, len_Ibar):
 
 def get_EWMA(Ibar, lamd, Estar_alphastar):
     
+    """
+    Step 3 of the pseudocode.
+    
+    EWMA of residuals resulting from harmonic regression is calculated.
+
+    Inputs:
+        Ibar:               indices of the outlier free timeseries
+        lamd:               parameter used in the control chart calculations
+        Estar_alphastar:    numpy array of the residuals of the time series
+
+    Output:
+        z:                  EWMA of residuals resulting from harmonic regression
+    """
+    
     z = [0 for i in range(len(Ibar))]
     z[0] = Estar_alphastar[Ibar[0]]
     a = 1.0 - lamd
-    for i in range(1, len(Ibar)):
         z[i] =  a * z[i-1]  + lamd * Estar_alphastar[Ibar[i]]
     
     return z
+    for i in range(1, len(Ibar)):
 
     
-def flag_history(z, tau, S, Ibar):
+def flag_history(z, tau, Ibar):
+    """
+    Step 4, flag history calculation of the pseudocode.
+    
+    Flag history is claculated here, based on the 'persistence' of any nonzero signals.
+    
+    Inputs:
+        z:     EWMA of residuals resulting from harmonic regression
+        tau:   Control chart vector
+        Ibar:  Indices of outlier free timeseries.
+    
+    """
     
 #    f = [int(np.sign(z[i]) * np.floor(np.abs(z[i]/tau[i]))) for i in range(len(z))]
     f = [(np.sign(z[i]) * np.floor(np.abs(z[i]/tau[i]))) for i in range(len(z))]
@@ -151,6 +234,17 @@ def flag_history(z, tau, S, Ibar):
     
     
 def persistence_counting(f, persistence):
+    """
+    Step 4, persistence calculation of the pseudocode
+    Inputs:
+        f:             the flag history
+        persistence:   user defined parameter. (values between 7 and 10 have been used so far)
+        
+    Output:
+        tmp4:          list of integers
+                       each element indicates how long the current sign (+ or -) lasted.
+    
+    """
     
     f_sgn = np.sign(f)   # Disturbance direction
     s = len(f_sgn)
@@ -175,8 +269,26 @@ def persistence_counting(f, persistence):
     
 
 def summarize(jump_vals_presSten, presInd, num_obs, summaryMethod, tyeardoy):
-
-    ewma_summary = [-2222 for i in range(num_obs)]
+    
+    """
+    Summarizing.
+    
+    Missing data points are addressed here.
+    Breakpoints are determined here.
+    
+    Inputs:
+        summaryMethod:  string ('annual_mean' or 'on-the-fly')
+                        For getting breakpoints, choose 'on-the-fly'
+    
+    Output:
+        brkpt:          list of breakpoints indices
+        ewma_summary:   jump values including the missing data points.
+        brkpt_summary:  
+        
+    
+    """
+    missing_data_vals = -2222
+    ewma_summary = [missing_data_vals for i in range(num_obs)]
     tt = 0
     for i in range(len(presInd)):
         ewma_summary[presInd[i]] = jump_vals_presSten[tt]
@@ -184,13 +296,13 @@ def summarize(jump_vals_presSten, presInd, num_obs, summaryMethod, tyeardoy):
     # missing and outlier timepoints still have -2222
 
     # if the very first obs was missing/outlier, set it to zero
-    if ewma_summary[0] == -2222:
+    if ewma_summary[0] == missing_data_vals:
         ewma_summary[0] = 0
 
     # replace the -2222s with the last available ewma value
-    if ewma_summary[0] != -2222:
+    if ewma_summary[0] != missing_data_vals:
         for i in range(1, num_obs):
-            if ewma_summary[i] == -2222:
+            if ewma_summary[i] == -missing_data_vals:
                 ewma_summary[i] = ewma_summary[i-1]
 
     if summaryMethod == 'on-the-fly':
@@ -251,32 +363,6 @@ def summarize(jump_vals_presSten, presInd, num_obs, summaryMethod, tyeardoy):
             endIdx = max([i for i in range(num_obs) if \
                                tyeardoy[i, 0] == tyeardoy[beginIdx,0]])
 
-    if summaryMethod == 'reduced_wiggles':
-        max_val = np.max(ewma_summary)
-        min_val = np.min(ewma_summary)
-        range_vals =np.abs(max_val - min_val)
-        for i in range(1, num_obs):
-            if np.abs(ewma_summary[i] - ewma_summary[i-1]) < 0.33*range_vals:
-                ewma_summary[i] = ewma_summary[i-1]
-
-        # this summary has lesser wiggles. Now look for slopes in this summary to get breakpoints.
-        # first take the very first alarm:
-        brkpt = [0]
-        ind = 0
-        while (ewma_summary[ind] == 0) and (ind < num_obs):
-            ind += 1
-        brkpt.append(ind)
-        if ind == num_obs-1:
-            return
-
-        for i in range(1,num_obs):
-            if ewma_summary[i] != ewma_summary[i-1]:
-                    brkpt.append(i-1)
-
-        brkpt.append(num_obs-1)
-        
-        
-
     return brkpt, ewma_summary, brkpt_summary
     
 
@@ -284,15 +370,32 @@ def ewmacd(tyeardoy, vec_obs, presInd, \
            K, xbarlimit1, xbarlimit2,  \
            lowthreshold, trainingStart, trainingEnd, mu, L, lam,  \
            persistence, summaryMethod, ns, nc, full_fig_name):
-# tyeardoy is a 2 column matrix --- 1st column contains the years, the second
-#          column contains the doys.
-# vec_obs is a 1 column array. It contains spectral values (including missing)
-#         for a fixed pixel and fixed band, in same chronological order as tyeardoy
-# K is the number of harmonics. 
-# lowthreshold is minimum allowable value for a spectral band. Must be >= 0.
-# trainingStart is the first year (eg., 2009)
-# trainingEnd is the final year + 1 (eg., 2015 if the dataset ends with 2014)
+    """
+    Algorithm EWMACD.
+    
+    Inputs:
+        tyeardoy:             A 2 column matrix --- 1st column contains the years, the second
+                               column contains the doys.
+        vec_obs:              A 1 column array. It contains spectral values (including missing)
+                               for a fixed pixel and fixed band, in same chronological order as tyeardoy
+        presInd:              numpy array containing the indices where vec_obs has is valid.
+        K:                    The number of harmonics. 
+        lowthreshold:         Minimum allowable value for a spectral band. Must be >= 0.
+        trainingStart:        First year (eg., 2009)
+        trainingEnd:          Final year + 1 (eg., 2015 if the dataset ends with 2014)
+        
+    Outputs:
+        this_band_resids:              Residuals of the EWMA fit. Not always needed but, for this individual 
+                                       algorithm, may be helpful in describing the quality of fit.
+        this_band_summary:             EWMACD flags. 
+                                       Original output of the algorithm.
+                                       Redundant as of now in the LULC with polyalgo sense.
+        this_band_brkptsglobalIndex:   List of breakpoints, each breakpoint being represented by its global index.
+        this_band_brkPtYrDoy:          List of breakpoints, each breakpoint being described as [year, doy].
+        brkpt_summary:                 brkptsummary is needed in these 1D codes to make 1D plots. 
+                                       But for 2D, it is redundant.
 
+    """
     num_obs = len(vec_obs)
 
     # ************* develop the presInd vector ***********************
