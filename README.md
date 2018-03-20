@@ -1,4 +1,6 @@
-Python implementation of the ensemble for land use change detection using  satellite images. The ensemble is based on three fundamentally different approaches for detecting changes. Python codes were scaled using python multiprocessing (across cores)
-and pyparallel (across nodes).
+Python implementation of the ensemble for land use change detection using  satellite images. The ensemble is based on three algorithm for detecting changes. These algorithms are chosen to be fundamentally unique to each other. Sample input and validation files are provided. 
 
-A high performance parallel version of the approach, scaled using openmp, was implemented as well (mpi based scaling in progress). These codes are available on request. 
+These codes are written with pixelwise validation data (provided in the sample input files) in mind. Codes for processing full image stacks (eg., an image stack covering a big patch of land) are available upon request. 
+
+Python codes were scaled using python multiprocessing (across cores) and pyparallel (across nodes). Parallel codes are also available on request.
+ 
