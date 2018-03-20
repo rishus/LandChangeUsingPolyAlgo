@@ -13,6 +13,7 @@ import scipy.special as splfn
 import l2appr as myb
 import copy
 #import os
+from commons import regress
 
 #def regress(t, u, model, K):
 #    
@@ -47,6 +48,15 @@ import copy
 #    return alpha, fit
 
 def despike(vec_timestamps, vec_obs, despike_tol):
+    
+    """ 
+    Step 1 in the pseudocode:
+        isolated, single spikes in observvations are assumed to be faulty observations.
+        These are detected and corrected divided differences.
+        
+    Output:
+        vec_obs_updated:  numpy array of corrected observations.
+    """
 
     vec_obs_updated = np.asarray(vec_obs, dtype='float')
     Sfinal = len(vec_timestamps)
@@ -86,6 +96,20 @@ def despike(vec_timestamps, vec_obs, despike_tol):
     return vec_obs_updated
     
 def scoreSegments(vec_timestamps, vec_obs, vertices, currNumVerts):
+    """
+    Step 2_support in the pseudocode:
+        For each interval determined by the vertices given in 'vertices',
+        calculate the least squares fit. 
+        Then calculate the MSE for that interval.
+        The score of a segment (or interval) is the MSE with that fit.
+    
+    Input: 
+        timestamps, observations, vertices, and currNumVerts = len(vertices)
+        
+    Output:
+        segmentScores: a list of MSEs, one MSE per interval.
+    
+    """
     
     segmentScores = []
     for i in range(0, currNumVerts-1):
@@ -111,13 +135,24 @@ def scoreSegments(vec_timestamps, vec_obs, vertices, currNumVerts):
         # such an interval equal to 0, then the other interval will get chosen
         # for the next steps (of splitting etc).
         # This situation will arise, for example, when there is a 'sharp' drop
-        # in values. Check out the figures in CG paper.
+        # in values. Check out the figures in ISPRS paper.
             segmentScores.append(0)
 
     return segmentScores
 
 
 def splitSeries(vec_timestamps, vec_obs, endSegment, distTest):
+    
+    """
+    Step 2_support in the pseudocode:
+        least squares fit is done on the current interval.
+        pointwise error is calculated.
+        the index corresponding to maximum pointwise error is returned.
+        
+    Output:
+        maxDiffInd:  the index corresponding to maximum pointwise error is returned.
+    
+    """
 
     maxDiffInd = 0
     ok = False    
@@ -140,6 +175,30 @@ def splitSeries(vec_timestamps, vec_obs, endSegment, distTest):
 
 
 def getInitVerts(vec_timestamps, vec_obs, mpnp1, distwtfactor):
+    
+    """
+    Step 2 of the pseudocode:
+        Using least squares regression iteratively, determine a set of initial breakpoints.
+    
+    Approach: For the 'current' vertices, calculate the MSE for each segment.
+              Take the ONE interval with HIGHEST MSE and split it into two at
+              the point of highest deviation. Then calculate the MSEs again.
+              Continue iteratively until numMaxVerts vertices are found.
+
+    Helper functions:
+        scoreSegments
+        splitSeries
+        
+    Input: 
+        vec_timestamps: array timepoints (x-coordinates) to be used.
+        vec_obs:        array of observations (y-coordinates).
+        mpnp1:          maximum number of segments desired.
+        distwtfactor:   user defined parameter that decided whether disturbance in initial segments
+                        should be considered or not.
+    Output:
+        vertices:  a list of indices representing the initial breakpoints to be used.
+    
+    """
 
     numObs = len(vec_obs)
     numMaxVerts = min(mpnp1, numObs-2)   #internal
@@ -189,15 +248,20 @@ def getInitVerts(vec_timestamps, vec_obs, mpnp1, distwtfactor):
 
 def angleDiff(xcoords, ycoords, yrange, distwtfactor):
     
-#   1. Need three points -- middle point is the one that gets the score
-#       the others are the ones preceding and following
-#   2. Note that ycoords needs to be scaled to the range of the whole
-#       trajectory for this to really be meaningful
-#   3. Distweightfactor helps determine how much weight is given to angles
-#       that precede a disturbance.  If set to 0, the angle difference is
-#       passed straighton.
-#   4. If disturbance (positive), give more weight
+    """
+    Step 3_support of the pseudocode:
+    
+   1. Need three points -- middle point is the one that gets the score
+       the others are the ones preceding and following
+   2. Note that ycoords needs to be scaled to the range of the whole
+       trajectory for this to really be meaningful
+   3. Distweightfactor helps determine how much weight is given to angles
+       that precede a disturbance.  If set to 0, the angle difference is
+       passed straighton.
+   4. If disturbance (positive), give more weight
 
+    """
+    
     angle1 = np.arctan2([ycoords[1]-ycoords[0]],[xcoords[1]-xcoords[0]]) * 180 /np.pi
     angle2 = np.arctan2([ycoords[2]-ycoords[1]],[xcoords[2]-xcoords[1]]) * 180 /np.pi
     scaler = max([0, (ycoords[2]-ycoords[1])*distwtfactor/yrange]) + 1
@@ -207,6 +271,24 @@ def angleDiff(xcoords, ycoords, yrange, distwtfactor):
 
 
 def cullByAngleChange(vec_timestamps, vec_obs, startingVerts, mu, nu, distwtfactor):
+    
+    """
+    Step 3 of the pseudocode:
+        Drop 'insignificant' vertices.
+        Specifically, if the angle formed at a vertex is almost zero (or, 180),
+        that vertex is not 'important' and is dropped.
+        
+    Input: 
+        vec_timestamps, vec_obs: numpy arrays.
+        startingVerts:           list of initial vertices.
+
+    Helper function:
+        angleDiff
+        
+    Output:
+        currVerts:  an updated list of vertices 
+    
+    """
     
     # startingVerts : global indices (in vec_timestamps) of the points
     #                 that got chosen as indices.
@@ -293,6 +375,10 @@ def cullByAngleChange(vec_timestamps, vec_obs, startingVerts, mu, nu, distwtfact
 
 
 def pickBetterFit(vec_obs, fit1, fit2):
+    
+    """
+    Step 4_support    
+    """
 
     diff1 = [vec_obs[i] - fit1[i] for i in range(len(fit1))]
     diff2 = [vec_obs[i] - fit2[i] for i in range(len(fit2))]
@@ -306,6 +392,16 @@ def pickBetterFit(vec_obs, fit1, fit2):
 
 
 def anchoredRegress(xvals, yvals, yanchorval):
+    """
+    Step 4_support:
+        
+        Left end is fixed to yanchorval.
+        Linear regression is then done to determine the slope of the fit in this current interval.
+        
+    Output:
+        slope: slope of the fit in current interval
+        fit:   fitted values.
+    """
 
     x = xvals - xvals[0]
     y = yvals - yanchorval
@@ -317,10 +413,23 @@ def anchoredRegress(xvals, yvals, yanchorval):
 
 
 def findBestTrace(vec_timestamps, vec_obs, currVerts):
+    """
+    Step 4 of the pseudocode:
+        
+        For each interval, two fits are cosidered: (i) anchored regression, and (ii) end-points-connecting line.
+        The fit with lesser MSE is chosen as the final fit.
+        (In my opinion, anchored regression will always give lower MSE.)
+        
+    Helper functions:
+        anchoredRegress, pickBetterFit.
+    
+    Output:
+        bt:  a dictionary containing  vertices, vertYVals, yFitVals, and slopes of the calcualted model.
 
+    """
 #    Given set of vertices (x-vals), find the the combo of vertex y-vals
 #    that results in best fit for each segment x and y are the original values.
-#    vertices: is the list of vertices (in terms of array position, not the x-value.
+#    vertices: is the list of vertices (in terms of array position, not the x-value).
 #
 #    "x values"
 #    "y values"
@@ -329,7 +438,6 @@ def findBestTrace(vec_timestamps, vec_obs, currVerts):
 #    "y coords of vertices"
 #    "y-fit values"
 #    "slopes is needed for later analysis in the main algorithm. So we store and return those as well"
-
     Sfinal = len(vec_timestamps)
     numSegs = len(currVerts) - 1
     bt = {'vertYVals': 'null', 'yFitVals' : 'null','slopes' : 'null'}
@@ -392,16 +500,122 @@ def findBestTrace(vec_timestamps, vec_obs, currVerts):
     return bt
 
 
+def calcFittingStats(vec_obs, vec_fitted, nParams):
+    
+    """
+    Step 5 of the pseudocode:
+        given the (i) input x-coordinates, (ii) observations, and (iii) a linear fit model
+        get the 'goodness of fit'.
+        F-statistics is used.
+        
+    Output:
+        modelStats:    A dictionary with a bunch of statistics on the model.
+    
+    """
+    
+    nObs = len(vec_obs)
+    nPred = len(vec_fitted)
+    
+    if (nObs != nPred):
+        ok = 0
+        return ok
+
+    observed = copy.deepcopy(vec_obs)
+    fitted = copy.deepcopy(vec_fitted)
+    
+    ubar = sum(observed)/nObs
+    meanModel_errSquared = [(observed[i]-ubar)*(observed[i]-ubar) for i in range(nObs)]
+    ss_mean = sum(meanModel_errSquared)
+    resid = [abs(observed[i] - fitted[i]) for i in range(0, nObs)]    
+    abs_diff = sum(resid)
+    ss_resid = sum([r*r for r in resid])
+    
+    X1_squared = ss_mean - ss_resid
+    X2_squared = ss_resid
+    
+    dof1 = nParams 
+    dof2 = nObs - (nParams +1)  
+    if (dof2 <= 0):
+        modelStats = {'ok': 0,
+                      'mean_u': ubar,
+                      'sum_of_squares': ss_mean ,
+                      'sum_of_squares_resids':  X2_squared ,
+                      'sum_of_squares_regressor': X1_squared,
+                      'dof1': dof1,
+                      'dof2': dof2,
+                      'fstat':  0,
+                      'p_of_f': 1,
+                      'aicc':  0,
+                      'residual_variance':  0,
+                      'total_variance':  0 ,
+                      'adjusted_rsquare': 0 ,
+                      'ms_resid': 0,
+                      'ms_regr': 0,
+                      'yfit':  vec_fitted,
+                      'abs_diff': abs_diff,}
+        
+    else:
+        residual_variance = ss_resid/dof2
+        total_variance = ss_mean/(nObs-1)
+        adjusted_rsquared = 1 - (residual_variance / total_variance)
+        
+        ms_regr = X1_squared/dof1
+        if (ms_regr < 0.00001):
+            f = 0.0001
+        else:
+            f = (X1_squared/dof1)/(X2_squared/dof2)
+            
+        ms_resid = X2_squared/dof2
+        # Get the probability that F > f, i.e., Q(f| d1, d2)
+        # We get Ix. p_of_f is 1.0 - Ix.
+        pval = splfn.betainc( 0.5 * dof2, 0.5 * dof1 , dof2/(dof2 + dof1*f) )  
+        aic = (2.0 * nParams) + (nObs * np.log(X2_squared/nObs))
+        aicc = aic + ((2.0 * nParams*(nParams+1))/(nObs - nParams -1))
+        modelStats = {'ok': 1,
+                      'mean_u': ubar,
+                      'sum_of_squares': ss_mean ,
+                      'sum_of_squares_resids':  X2_squared ,
+                      'sum_of_squares_regressor': X1_squared,
+                      'dof1': dof1,
+                      'dof2': dof2,
+                      'fstat':  f,
+                      'p_of_f': 1.0 - pval,
+                      'aicc':  aicc,
+                      'residual_variance':  residual_variance,
+                      'total_variance':  total_variance,
+                      'adjusted_rsquare': adjusted_rsquared,
+                      'ms_regr': ms_regr,
+                      'ms_resid': ms_resid,
+                      'yfit':  vec_fitted,
+                      'abs_diff': abs_diff}
+                      
+    return modelStats
+
+
 def takeOutWeakest(currModel, threshold, vec_timestamps, vec_obs, v, vertVals):
     
-   # nCurrVerts is the number of vertices in the current (incoming) model.
-   # nObs is the number of x values.
-   # x is the x-coordinate vector
-   # y is the y-coordinate vector
-   # Exactly 1 vertex will get dropped. So ---
-   # remVerts, remVertsVals each have nVerts-1 elements,
-   # newSlopes has nVerts-2 elements,
-   # newFit has same number of elements as x.
+    """
+    Step 6(i) of the pseudocode:
+        
+    Approach:
+        Weakest segment is the segment with maximum absolute slope.
+        Weakest vertex is the left vertex of this segment.
+
+    Inputs:
+        nCurrVerts:  number of vertices in the current (incoming) model.
+        nObs:        number of x values.
+        x:           the x-coordinate vector
+        y:           the y-coordinate vector
+    
+    Exactly 1 vertex will get dropped. So ---
+    remVerts, remVertsVals: each have nVerts-1 elements,
+    newSlopes:              has nVerts-2 elements,
+    newFit:                 has same number of elements as x.
+    
+    Output:
+        updatedVerts:   list of vertices after the 'weakest' vertex has been dropped.
+        
+    """
 
     nSlopes = len(currModel['slopes'])
     nVerts = len(v)
@@ -483,89 +697,18 @@ def takeOutWeakest(currModel, threshold, vec_timestamps, vec_obs, v, vertVals):
     return updatedVerts
    
 
-def calcFittingStats(vec_obs, vec_fitted, nParams):
-    
-    nObs = len(vec_obs)
-    nPred = len(vec_fitted)
-    
-    if (nObs != nPred):
-        ok = 0
-        return ok
-
-    observed = copy.deepcopy(vec_obs)
-    fitted = copy.deepcopy(vec_fitted)
-    
-    ubar = sum(observed)/nObs
-    meanModel_errSquared = [(observed[i]-ubar)*(observed[i]-ubar) for i in range(nObs)]
-    ss_mean = sum(meanModel_errSquared)
-    resid = [abs(observed[i] - fitted[i]) for i in range(0, nObs)]    
-    abs_diff = sum(resid)
-    ss_resid = sum([r*r for r in resid])
-    
-    X1_squared = ss_mean - ss_resid
-    X2_squared = ss_resid
-    
-    dof1 = nParams 
-    dof2 = nObs - (nParams +1)  
-    if (dof2 <= 0):
-        modelStats = {'ok': 0,
-                      'mean_u': ubar,
-                      'sum_of_squares': ss_mean ,
-                      'sum_of_squares_resids':  X2_squared ,
-                      'sum_of_squares_regressor': X1_squared,
-                      'dof1': dof1,
-                      'dof2': dof2,
-                      'fstat':  0,
-                      'p_of_f': 1,
-                      'aicc':  0,
-                      'residual_variance':  0,
-                      'total_variance':  0 ,
-                      'adjusted_rsquare': 0 ,
-                      'ms_resid': 0,
-                      'ms_regr': 0,
-                      'yfit':  vec_fitted,
-                      'abs_diff': abs_diff,}
-        
-    else:
-        residual_variance = ss_resid/dof2
-        total_variance = ss_mean/(nObs-1)
-        adjusted_rsquared = 1 - (residual_variance / total_variance)
-        
-        ms_regr = X1_squared/dof1
-        if (ms_regr < 0.00001):
-            f = 0.0001
-        else:
-            f = (X1_squared/dof1)/(X2_squared/dof2)
-            
-        ms_resid = X2_squared/dof2
-        # Get the probability that F > f, i.e., Q(f| d1, d2)
-        # We get Ix. p_of_f is 1.0 - Ix.
-        pval = splfn.betainc( 0.5 * dof2, 0.5 * dof1 , dof2/(dof2 + dof1*f) )  
-        aic = (2.0 * nParams) + (nObs * np.log(X2_squared/nObs))
-        aicc = aic + ((2.0 * nParams*(nParams+1))/(nObs - nParams -1))
-        modelStats = {'ok': 1,
-                      'mean_u': ubar,
-                      'sum_of_squares': ss_mean ,
-                      'sum_of_squares_resids':  X2_squared ,
-                      'sum_of_squares_regressor': X1_squared,
-                      'dof1': dof1,
-                      'dof2': dof2,
-                      'fstat':  f,
-                      'p_of_f': 1.0 - pval,
-                      'aicc':  aicc,
-                      'residual_variance':  residual_variance,
-                      'total_variance':  total_variance,
-                      'adjusted_rsquare': adjusted_rsquared,
-                      'ms_regr': ms_regr,
-                      'ms_resid': ms_resid,
-                      'yfit':  vec_fitted,
-                      'abs_diff': abs_diff}
-                      
-
-    return modelStats
-
-
 def pickBestModel(my_models, best_model_proportion, use_fstat, pval):
+    """
+    Step 7 of the pseudocode:
+    Check each model for acceptability, and then return the index of the 'best' model.
+    
+    Inputs:
+        my_models:  a list of models, where each element a dictionary representing/describing a model.
+        
+    Output:
+        bestModelInd:  index of the best model in the above list.
+        
+    """
     
     numModels = np.size(my_models)
 #    print 'useFstat =', use_fstat, ', bestModelProp =', best_model_proportion
@@ -595,7 +738,20 @@ def pickBestModel(my_models, best_model_proportion, use_fstat, pval):
     
     
 def check_slopes(model, recovery_thresh):
-    
+    """
+    Again, step 7 of the pseudocode:
+        
+        Once a model has been decided, this routine double checks the slopes in the model.
+        We don't want the slopes to 'abnormal'
+        For e.g., a recovery steeper than a threshold may indicate unacceptability for the model.
+        
+    Input:
+        model: a dictionary
+        
+    Output:
+        accept: a string with value 'Yes' or 'No'
+            
+    """
     #given one model, look at its slopes
     #filter out if recovery happens quicker than quickest disturbance --
     #a value-free way to get unreasonable things out.
@@ -626,7 +782,25 @@ def check_slopes(model, recovery_thresh):
 
 
 def findBestTrace_alternate(vec_timestamps, vec_obs, currVerts):
-# this routine is for the marquardt approach. Err ... actually, we are using Bsplines
+    """
+    Step 4' of the pseudocode:
+        
+    This routine is for the marquardt approach. Err ... actually, we are using Bsplines
+   
+    Place knots at the current vertices.
+    Then fit get a fit using Bsplines approximation.
+    Bsplines implementation is based on the corresponding Fortran codes from Prof. L.T.Watson, Prof. DeBoor.
+ 
+    Inputs:
+       vec_timestamps:  the x-coordinates
+       vec_obs:         the observations (i.e., the y-coordinates)
+       currVerts:       the current vertices.
+   
+    Output:
+       bt:  a dictionary containing  vertices, vertYVals, yFitVals, and slopes of the calcualted model.
+            (just as findBestTrace did.)
+   
+   """
 #    "x values"
 #    "y values"
 #    "currVerts"
@@ -674,6 +848,16 @@ def findBestTrace_alternate(vec_timestamps, vec_obs, currVerts):
 
 def takeOutWeakest_alternate(vec_timestamps, vec_obs, v, vertVals):
     
+    """
+    Step 6'(i)
+    
+    Unlike takeOutWeakest, we don't look for negative slopes anymore.
+
+    Output:
+        updatedVerts:   list of vertices after the 'weakest' vertex has been dropped.
+                        (just like takeOutWeakest.)
+    """
+    
     nVerts = len(v)
     updatedVerts = copy.deepcopy(v)
 
@@ -697,25 +881,20 @@ def takeOutWeakest_alternate(vec_timestamps, vec_obs, v, vertVals):
         
     return updatedVerts
     
-#def getDataSubset(tyeardoy, vec_timestamps_edited, vec_obs_all, presInd, \
-#                  doy_start, doy_end):
-#    
-#    # presInd is a numpy array.
-#    # vec_obs_all is also a numpy array.
-#    # also get 'all summer indices'
-#    tyeardoy_idxs = np.where(np.logical_and(doy_start <= tyeardoy[:,1], \
-#                                                tyeardoy[:,1]< doy_end))[0]
-#                                            
-#    summer_pres_indices = list(set(tyeardoy_idxs).intersection(presInd))
-#    summer_pres_indices.sort()
-#    vec_timestamps_edited_sub = vec_timestamps_edited[summer_pres_indices]
-#    vec_obs_all_sub = vec_obs_all[summer_pres_indices]
-#    
-#    return vec_timestamps_edited_sub, vec_obs_all_sub, np.asarray(summer_pres_indices)
 
 def get_alternate_models(vec_timestamps, vec_obs_despiked,\
                          newInitVerts, best_model_proportion, use_fstat, pval, \
                          recovery_threshold ):
+    """
+    Step 6' of the pseudocode:
+        
+        The entire 'alternate' iterative process of generated models is executed here.
+        
+        Outputs:
+            my_alternate_models:   a list of models, each model being represented as a dictionary.
+            bestModelInd:          the index corresponding the 'best' model in the above list.
+    
+    """
     
     my_alternate_models = []
     
@@ -797,6 +976,49 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
               ewma_trainingStart, ewma_trainingEnd, ewma_lowthreshold, ewma_K,\
               despike_tol, mu, nu, distwtfactor, recovery_threshold, \
               use_fstat, best_model_proportion, pval):
+    
+    """
+    Algorithm LandTrendR.
+    
+    Inputs:
+        tyeardoy:             A 2 column (numpy) matrix --- 1st column contains the years, the second
+                              column contains the doys.
+        vec_obs:              A 1 column numpy array. It contains spectral values (including missing)
+                              for a fixed pixel and fixed band, in same chronological order as tyeardoy
+        presInd:              numpy array containing the indices where vec_obs has is valid.
+        despike_tol:          In despike step, spikes are dampened if the spectral value difference
+                              between spectral values on either side of the spike is less than
+        mu:                   Maximum number of segments allowed in the model.
+        nu:                   The initial regression-based detection of potential vertices can overshoot
+                              (max_segments + 1) vertices by this value.
+        distwtfactor:         
+        recovery_threshold:   During fitting, if a candidate segment has a recovery rate faster than
+                              1/recovery_threshold (in years), that segment is disallowed and a threshold
+                              different segmentation must be used. Setting to 1.0 turns off this filter.
+        use_fstat:            0 means 'use p_of_f', '1' is for 'dont use p_of_f'.
+                              So if use_fstat = 0, the code will use p_of_f
+        pval:                 If best fitted trajectory's p-of-F value exceeds this threshold, the entire
+                              trajectory is considered no-change.
+            
+            
+        ewma_trainingStart, ewma_trainingEnd, ewma_lowthreshold, ewma_K: parameters for EWMACD. These are
+        used to decide whether there is sufficient data for that pixel to do any processing. Redundant
+        here now because this calculation has been moved to poly_1D.py, where presInd is calculated 
+        and simply passed into each component algorithm.
+        
+    Outputs:
+        bestModelInd:       the index of the 'best' model in the list my_models.
+        my_models:          list of all models generated by the algorithm for this pixel.
+                            One of these models (the one at bestModelInd index) is the final model.
+                            Redundant output.
+        brkptsGI:           List of breakpoints, each breakpoint being represented by its global index.
+        brkPtYrDoy:         List of breakpoints, each breakpoint being described as [year, doy].
+        vecTrendFitFull:    piecewise linear approximation to the trend.
+                            original output of the algorithm. 
+                            Redundant as of now in the LULC with polyalgo sense.
+        brkpt_summary:      brkptsummary is needed in these 1D codes to make 1D plots. But for 2D, it is redundant.
+        
+    """
 
     num_obs = len(vec_obs_all)
     # ************* develop the presInd vector ***********************
@@ -883,16 +1105,16 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
     prev_model_index = 0
     this_model_index = 1 
     while (nSegs >1 ):  #
-        # step 1: update vertices
+        # step (i): update vertices
         updatedVertices = takeOutWeakest(my_models[prev_model_index], recovery_threshold,
                                       vec_timestamps, vec_obs_despiked,
                                       my_models[prev_model_index]['vertices'],
                                       my_models[prev_model_index]['vertYVals'])
 
-        # step 2: update trace (i.e., vertYals, yFit, slopes, and a copy of vertices)
+        # step (ii): update trace (i.e., vertYals, yFit, slopes, and a copy of vertices)
         updatedModel = findBestTrace(vec_timestamps, vec_obs_despiked, updatedVertices)
         
-        # step 3: update statistics (everything except yfit is scalar. yfit is only a copy
+        # step (iii): update statistics (everything except yfit is scalar. yfit is only a copy
         #         of the yfit from trace)
         nSegs = len(updatedModel['vertices']) - 1
         nParams = nSegs
