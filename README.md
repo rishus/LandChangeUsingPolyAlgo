@@ -4,6 +4,7 @@ These codes are written with pixelwise validation data (provided in the sample i
 
 Python codes were scaled using python multiprocessing (across cores) and pyparallel (across nodes). Parallel codes are also available on request.
  
-Main file is poly\_1D.py
+Main file is poly\_1D.py.
+
 bfast\_ps.pdf, landtrendr\_ps.pdf, and ewmacd\_ps.pdf provide the pseudocodes for the algorithms.
 
