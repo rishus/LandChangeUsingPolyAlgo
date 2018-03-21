@@ -1,11 +1,3 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Nov 25 16:53:01 2017
-
-@author: rishu
-"""
-
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
@@ -26,70 +18,42 @@ from matplotlib import pylab as plt
 import datetime as dt
 import matplotlib.ticker as ticker
 import matplotlib.dates as mdates
-
-time1 = 2000
-time2 = 2012 + 1
-eps = 1
-if time1 == 2000:
-    tickGap = 2
-    dist_thresh = 13.0  # because an otherwise good algorithm outcome could have one breakpoint lurking around at far end.
-                        # We don't want to lose this result just because of that false alarm.
-    min_ew_brks = 0
-    max_brks = 3
-else:
-    tickGap = 4
-    dist_thresh = 25.0  # because an otherwise good algorithm outcome could have one breakpoint lurking around at far end.
-                        # We don't want to lose this result just because of that false alarm.
-    min_ew_brks = 1
-    max_brks = 5     # for 13 year time period, 3 breaks would be enough?!
-                     # For 25 years, 5 break would be good. 
-                     # For 6 years, 2 breaks would be enough.
-# parameters for ewmacd
-ew_num_harmonics = 2  # was 2 earlier
-ew_ns = ew_num_harmonics
-ew_nc = ew_num_harmonics
-ew_xbarlimit1 = 1.5
-ew_xbarlimit2 = 20
-ew_lowthreshold = 0
-ew_trainingStart = time1
-if time1 == 2000:
-    ew_trainingEnd= time1 + 2
-else:
-    ew_trainingEnd= time1 + 3
-ew_mu = 0
-ew_L = 3.0   # default is 3.0
-ew_lam = 0.5   # default is 0.5
-ew_persistence = 7  # default is 7
-ew_summaryMethod = 'on-the-fly'   #'reduced_wiggles'  # 'annual_mean'  #
-
-# parameters for bfast
-bf_h = 0.15
-bf_numBrks = 2 #max_brks
-bf_numColsProcess = 1
-bf_num_harmonics = ew_num_harmonics  #1
-bf_pval_thresh = 0.05  #default is 0.05
-bf_maxIter = 2
-bf_frequency = 23
-
-# parameters for landtrendr
-ltr_despike_tol = 0.9  # 1.0, 0.9, 0.75, default is 0.9
-ltr_pval = 0.2          # 0.05, 0.1, 0.2, default is 0.2
-ltr_mu = 6  #max_brks + 1   #mpnu1     # 4, 5, 6, default is 6
-ltr_recovery_threshold = 1.0  # 1, 0.5, 0 25
-ltr_nu = 3              # 0, 3
-ltr_distwtfactor = 2.0   #i have taken this value from the IDL code
-ltr_use_fstat = 0        #0 means 'use p_of_f', '1' is for 'dont use p_of_f'.
-                               #So if use_fstat = 0, the code will use p_of_f.
-
-ltr_best_model_proportion = 0.75
-colors = ['green', 'sandybrown', 'black']
-dashes = [[12, 6, 12, 6], [12, 6, 3, 6], [3, 3, 3, 3]] # 10 points on, 5 off, 100 on, 5 off
-#    line_styles = ['--','s--',':']
-line_widths = [4, 5, 2]
-
+import parameters 
 
 ####### read data from timesync dataset #####################
 def data_from_timeSyncCsvFile(path, mat_all_lines, fn_groundTruth, my_pid, time_start, time_end):
+    """
+    Inputs:
+        (i) my_pid: the id of the pixel currently being investigated. Each
+                    pixel has a unique pixel-id.
+    
+    This function reads the Timesync data files for pixe with id my_pid. That data has
+    (i)  the spectral time series for each pixel (multiple bands)
+    (ii) information on land use changes (year+doy and nature) for each pixel.
+    
+    The time series and the land use change info are stored in two separate files.
+    
+    Only visual red (R) and NIR bands are used currently.
+    This function reads the R and NIR time series, and generates the NDVI time series.
+    
+    An integer -9999 is used as masking value.
+    
+    Outputs:
+        (i)    vec_obs:   1D array of dimension 1 x num_obs.
+                          Contains the NDVI time series for pixel with id my_pid.
+                        
+        (ii)   tyeardoy:  2D array if dimension num_obs x 2. 
+                          Each row contains the year and the doy of the corresponding observation
+                          in vec_obs.
+        
+        (iii)  changes:   A list of length num_changes + 1, where num_changes is the number of changes.
+                          The zeroth element is simply the number num_changes.
+                          Each of the first to num_changes element is a 5-element list of the form
+                          [starting year, ending year, change_type, prechange land cover, postchange land cover]
+                          
+                          For a stable pixel, num_obs = 0.
+    
+    """
 
     num_lines = len(mat_all_lines)
     this_pixel_info ={'sensor': [], 'pid':  [], 'yr': [],  \
@@ -111,20 +75,20 @@ def data_from_timeSyncCsvFile(path, mat_all_lines, fn_groundTruth, my_pid, time_
             this_pixel_info['doy'].append(int(mat_vals[5]))
             try:
                 if (int(mat_vals[13]) not in [0, 1]):   # cloud, water etc masking
-                    this_pixel_info['b3'].append(-9999)
-                    this_pixel_info['b4'].append(-9999)
-                    this_pixel_info['b5'].append(-9999)
-                    this_pixel_info['b6'].append(-9999)
+                    this_pixel_info['b3'].append(maskVal)
+                    this_pixel_info['b4'].append(maskVal)
+                    this_pixel_info['b5'].append(maskVal)
+                    this_pixel_info['b6'].append(maskVal)
                 else:
                     this_pixel_info['b3'].append(int(mat_vals[8]))
                     this_pixel_info['b4'].append(int(mat_vals[9]))
                     this_pixel_info['b5'].append(int(mat_vals[10]))
                     this_pixel_info['b6'].append(int(mat_vals[12]))
             except:
-                    this_pixel_info['b3'].append(-9999)
-                    this_pixel_info['b4'].append(-9999)
-                    this_pixel_info['b5'].append(-9999)
-                    this_pixel_info['b6'].append(-9999)
+                    this_pixel_info['b3'].append(maskVal)
+                    this_pixel_info['b4'].append(maskVal)
+                    this_pixel_info['b5'].append(maskVal)
+                    this_pixel_info['b6'].append(maskVal)
             num_obs +=1
 
     tyeardoy_all = np.zeros((num_obs, 2))
@@ -135,11 +99,11 @@ def data_from_timeSyncCsvFile(path, mat_all_lines, fn_groundTruth, my_pid, time_
         red = float(this_pixel_info['b3'][i])
         nir = float(this_pixel_info['b4'][i])
         if (abs(nir+red) < np.finfo(float).eps):
-            vec_obs_all.append(-9999)
+            vec_obs_all.append(maskVal)
         else:
             ndvi = ((nir-red)/(nir+red))
             if ndvi < 0 or ndvi >1:
-                vec_obs_all.append(-9999)
+                vec_obs_all.append(maskVal)
             else:
                 vec_obs_all.append(ndvi * 10000)
 
@@ -190,8 +154,11 @@ def data_from_timeSyncCsvFile(path, mat_all_lines, fn_groundTruth, my_pid, time_
 
     return vec_obs, tyeardoy, changes
 
-################ hausdorff distance ###################
-def dist(A, B, toprint):
+
+def dist(A, B, toprint='no'):
+    """
+    Calculates the directional Hausdorff distance between two arrays
+    """
 
     lA = len(A)
     lB = len(B)
@@ -211,27 +178,65 @@ def dist(A, B, toprint):
             dists_AB[i, j] = abs(A[i]-B[j])
             
         daB[i] = min(dists_AB[i,:])
-    if toprint == 'bl':
-        print 'BFAST, LTR:'
-    if toprint == 'lb':
-        print 'LTR, BFAST'
-    if toprint in ['bl','lb']:
-        print 'A: ', A
-        print 'B: ', B
-        for i in range(lA):
-            print dists_AB[i,:]
-        
-        print 'daB = ', daB
+#    if toprint == 'bl':
+#        print 'BFAST, LTR:'
+#    if toprint == 'lb':
+#        print 'LTR, BFAST'
+#    if toprint in ['bl','lb']:
+#        print 'A: ', A
+#        print 'B: ', B
+#        for i in range(lA):
+#            print dists_AB[i,:]
+#        
+#        print 'daB = ', daB
 
     dAB = max(daB)
-    if toprint in ['bl','lb']:
-        print 'dAB = ', dAB
     
     return dAB
 
 
 ################# actual polyalgorithm is here ######################    
 def process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist_thresh):
+    """
+    Inputs: 
+         (i)  tyeardoy:           2D array if dimension num_obs x 2. 
+                                  Each row contains the year and the doy of the corresponding observation
+                                  in vec_obs.
+                                  
+        (ii)  vec_obs_original:   List of timeseries, each timeseries being a 1D vector.
+                                  Each timeseries corresponds to one spectral (raw or derived) band.
+                                  If multiple bands are being considered, then there will
+                                  be multiple timeseries.
+                                  
+        (iii) changes:            changes:   A list of length num_changes + 1, 
+                                  where num_changes is the number of changes.
+                                  
+        (iv)  dist_thresh :       Is already available. Doesn't quite need to be passed.
+        
+        
+    This code calls each algorithm, collects their results, decides the 'final' algorithm for the current pixel,
+    and returns the breakpoints of the individual algos as well as the polyalgo.
+    Currently has redundancies but will improve as the polyalgorithm methodology evolves.
+            
+    Outputs:
+          
+        Breakpoints of each algorithm
+        (i)   bf_brkpts
+        (ii)  ew_brkpts
+        (iii) ltr_brkpts
+        (iv)  polyAlgo_brkpts
+        
+        Each of the above variables is a list of the form
+                  [b1 = [year, doy], b2 = [year, doy], ..., bp = [year, doy]],
+        where bi corresponds to the i-th breakpoint. If an algorithm does not find any
+        breakpoint, then this list is empty ([]).
+
+        The name of the algorithm that got selected is also output (winner)
+        but this is only for gathering code statistics. It is not really needed
+        and will be removed evenutally.
+                  
+
+    """
 # this subroutine is for a fixed set of parameters. It is able to process multiple bands
 
     time1 = pixel_info[0]
@@ -249,7 +254,7 @@ def process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist
         training_t = tyeardoy[common_idx, 1]    # only doys in the training period.
         #Corner case
         if (len(training_t) < 2 * ew_num_harmonics + 1):    #from ewmacd
-           print   pid, ': too little training data'
+           print   (pid, ': too little training data')
            return [], [], [], [], 'insuff'
 
 #        brkptsummary is needed in these 1D codes to make 1D plots. But for 2D, it is redundant.
@@ -339,10 +344,13 @@ def process_pixel(tyeardoy, vec_obs_original, pixel_info, tickGap, changes, dist
 
     return bf_brkpts[1:-1], ew_brkpts[1:-1], ltr_brkpts[1:-1], polyAlgo_brkpts[1:-1], winner
 
-##################### plotting routine: change as and when needed #####################
+
 def plot_trajectories(pid, time1, tyeardoy, num_obs, vec_obs_original, presInd, \
                       tickGap, ew_flags_scaled, ltr_trend_scaled1, bf_trendFit_scaled, \
                       winner, changes, colors, dashes, line_widths):
+    """
+    script for generating the 1D plots included in the thesis and the ISPRS paper.
+    """
 
     fig, ax = plt.subplots()
     fig.set_size_inches(8,6)
@@ -394,7 +402,7 @@ def plot_trajectories(pid, time1, tyeardoy, num_obs, vec_obs_original, presInd, 
     plt.xlabel(xlabel_str)
     plt.rcParams.update({'font.size': 22})
 
-    fig_path = 'some_path'
+    fig_path = ''
     
     fig_name = 'all_' + str(time1) + "to12_" + str(pid) + '_nobias'+  '.png'
 #    fig_name =  'ltr_' + str(time1) + "to12_" + str(pid) + \
@@ -412,8 +420,27 @@ def plot_trajectories(pid, time1, tyeardoy, num_obs, vec_obs_original, presInd, 
     
     return
 
-################ main routine ##########################
-def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolyalgorithm/"):
+
+def process_timesync_pixels(path = ""):
+    """
+    main routine
+    (i)   input file names are provided here.
+    (ii)  for each pixel, the time series data and the 'reference' data is read
+          using a function call.
+    (iii) a for loop runs over the pixels.
+    (iii) for each pixel, the breakpoints are calculated by calling the function process_pixel.
+    (iv)  process_pixel outputs the breakpoints for each algorithm 
+          as a list 
+          
+          [b1 = [year, doy], b2 = [year, doy], ..., bp = [year, doy]],
+          
+          where each bi is a breakpoint found by the algorithm.
+    (iv)  in this code, the output is not saved as such. Saving the outputs
+          involves only minor additional scripting. It is implementd in the 2D
+          version.
+    (v)   Visualization of breakpoints is also implemented in the 2D version.
+    
+    """
 
     fn_timeSync_pids = path + "ts_pids_list.csv"
     fn_timeSync_ts = path + 'conus_spectrals.csv'
@@ -438,7 +465,7 @@ def process_timesync_pixels(path = "/home/rishu/research/thesis/myCodes/thePolya
             pass
 
     problem_pixels = []
-    print 'total pixels =', len(pixels_list)
+#    print 'total pixels =', len(pixels_list)
     fn_pids = []
     for pixel in pixels_list:  #40027038, 38029024]:  #pixels_list:
 
