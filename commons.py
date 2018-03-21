@@ -5,8 +5,22 @@ Created on Fri Mar 16 16:01:50 2018
 
 @author: rishu
 """
+import numpy as np
 
-def regress(t, u, model, K):
+def regress(t, u, model, K=0):
+    
+    """
+    Least squares regression.
+    Inputs:
+        model:   'linear' or 'harmon'
+                 'harmon' will do harmonic regression.
+        K:        number of harmonics needed in case of harmonic regression.
+        
+    Outputs:
+        alpha_star:  list of fit coefficients
+        fit:         least squares fit
+        
+    """
     
     M = len(t)
     if (model == 'linear') or (M < 2*K+1):
