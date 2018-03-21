@@ -21,7 +21,15 @@ import sys
 from basic_utils import regress
 
 def critValuesTable(method, startRow, endRow):
+    """
+    Reference tables for critical values calculations.
+    May be moved to commons.py in future, if more algorithms utilize it.
     
+    Output:
+        critValTable: List of lists
+                      A table of  dimensions (endRow - startRow) x 4.
+    
+    """
     if (method == "brownian bridge increments"):
         
        BBI = [[ 0.7552,  0.8017,  0.8444,  0.8977], \
@@ -90,43 +98,22 @@ def critValuesTable(method, startRow, endRow):
     return critValTable
 
 
-#def regress(t, u, model, K):
-#    
-#    M = len(t)
-#    if (model == 'linear') or (M < 2*K+1):
-#        ncols = 2
-#    elif (model == "harmon"):
-#        ncols = 2*K+1
-#    else:
-#        print 'model not supplied'
-#    
-#    X = np.zeros((M, ncols))
-#    X[:,0] = 1
-#        
-#    if (model == 'linear') or (M < 2*K+1):
-#        X[:, 1] = t
-#    elif (model == 'harmon'):
-#        for j in range(1, K+1):
-#            X[:, 2*j-1] = np.cos(map(lambda x: x * j,  t[0:M]))   #np.cos(j * t_loc[0:M])
-#            X[:, 2*j] = np.sin(map(lambda x: x * j,  t[0:M]))   #np.sin(j * t_loc[0:M])
-##            X[:, 2*j-1] = np.asarray([np.cos(j * t[i]) for i in range(0,M)])
-##            X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,M)])
-#    else:
-#        print "model not supported"
-#    
-#    if (np.abs(np.linalg.det(np.dot(np.transpose(X), X))) < 0.001):
-#        alpha_star = [0,0]
-#        fit = np.zeros((M,))
-#        return alpha_star, fit
-#
-#    alpha = np.linalg.solve(np.dot(np.transpose(X), X), np.dot(np.transpose(X), u))
-#    fit = np.dot(X,alpha)
-##    print 'fit_dims: ', fit.shape
-#
-#    return alpha, fit
+def OLSMosum(t, obs, model, h, K=0):
+    """
+    Supporting function for Step 1.1 & 2.1 of the pseudocode.
     
-
-def OLSMosum(t, obs, model, h, K):
+    Ordinary least squares movising sums (OLS-MOSUM) test:
+        OLS prediction error is calculated.
+    
+    Inputs:
+        h:     parameter for determining breakpoint spacing. ( 0 < h < 1)
+        K:     number of harmonics, if harmonic regression is being done
+        
+    Outputs:
+        process:  numpy array.
+                  the process defined by the moving sums (MOSUM) of these OLS residuals
+    
+    """
     
     Sfinal = len(t)
     if (model == "linear"):
@@ -134,7 +121,7 @@ def OLSMosum(t, obs, model, h, K):
     elif (model == "harmon"):
         coeffs, fit = regress(t, obs, "harmon", 0)
     else:
-        print "model not supported"
+        print ("model not supported")
     
     residuals = fit - obs
     
@@ -149,9 +136,27 @@ def OLSMosum(t, obs, model, h, K):
 
 
 def calcPValue(x, method, k, h, fnal):
-    #k is the number of columns in the 'process'
-    #h ... is a parameter related to grid spacing
- 
+    """
+    Step 1.1 & 2.1 of the pseudocode.
+    OLS MOSUM test pval calculation.
+    The test is based on:
+    
+    Chu, C-S.J., Hornik, K., and Kuan, C.-M., 1995, “Mosum tests for parameter constancy,” Biometrika, 82, 603–617.
+    
+    Brownian bridge crossing probabilities are read from the corresponding table.
+    
+    Input:
+        x:    PLS-MOSUM process vector 
+        k:    the number of columns in the 'process'
+        h:    parameter for grid spacing. ( 0 < h < 1)
+        fnal: the type of calculation to be used. Currently, only fnal=max is implemented.
+              In future, other kinds of fnal's may also be included. 
+        
+    Output:
+        pval: A p-value less than a user defined parameter  V ∈ (0, 1) indicates the presence of breakpoints.
+
+    """
+    
     if (method == "brownian bridge increments"):
         if (k > 6):
             k=6
@@ -190,7 +195,14 @@ def calcPValue(x, method, k, h, fnal):
     
 
 def recresids(t, u, begin_idx, model, deg):
-
+    """
+    Supporting function for Steps 1.2 & 2.2 of the pseudocode.
+    
+    Given arrays t (x-coordinates) and u (y-coordinates), for each point in range(begin_idx-1, Sfinal-1),
+    a least squares fit is calculated and the weighted prediction error (the recursuve residual)
+    for the corresponding 'next' point is estimated.
+    
+    """
     # remember, unlike Fortran, indices here will start from 0. 
     # begin_idx denotes the first point for which the residual will be calculated.
     # So remember use begin_idx as one less than what we were using in Fortran.
@@ -210,11 +222,11 @@ def recresids(t, u, begin_idx, model, deg):
             X[:, 2*j-1] = np.asarray([np.cos(j * t[i]) for i in range(0,Sfinal)])
             X[:, 2*j] = np.asarray([np.sin(j * t[i]) for i in range(0,Sfinal)])
     else:
-        print "model not supported"
+        print ("model not supported")
     
     
     check = True
-    recres = [ 0 for i in range(0, Sfinal) ]
+    recres = [0]*Sfinal
     # begin_idx is the firstmost index where the residual will be calculated.
     # The lastmost residual will be calculate for the index Sfinal.
     # But python indices will run from 0 to Sfinal -1, Sfinal being the length of the current array.
@@ -232,14 +244,12 @@ def recresids(t, u, begin_idx, model, deg):
             L = scipy.linalg.cho_factor(A, lower=False, overwrite_a=False,check_finite=True)
             vec_fitcoefs = scipy.linalg.cho_solve(L, np.dot(X[0:curr_idx+1,:].T, u[0:curr_idx+1]), overwrite_b=False, check_finite=True)
             rank = np.linalg.matrix_rank(L)   #uses svd
-            
             if (rank > 2):
-                print "rank > 2. Can't proceed. Cross check recresid."
+                print ("rank > 2. Can't proceed. Cross check recresid.")
                 break
             if (rank == 0):
-                print  "rank = 0 in recres"
+                print  ("rank = 0 in recres")
                 break
-            
         else:
             i = 1
 
@@ -251,7 +261,27 @@ def recresids(t, u, begin_idx, model, deg):
     return recres
 
 
-def getRSStri(t, u, model, h, K):
+def getRSStri(t, u, model, h, K=0):
+    """
+    Supporting funtion for Steps 1.2 & 2.2 of the pseudocode.
+    
+    Given arrays of x- and y-coordinates (size, at least, 3), recursive residuals are calculated
+    for each interval in range(0, Sfinal- brkpt_spacing +1).
+    The cumulative sum of these residual is then calculated.
+    The RSStri matrix is an upper triangular matrix storing these cumulative sums.
+    
+    Helper function:
+        recresids
+        
+    Inputs:
+        t,u:  x- & y-coordinates.
+        h:    parameter for breakpoint spacing. ( 0 < h < 1)
+        K:    number of harmonics to be used in case of harmonic regression.
+    
+    Output:
+        RSStri:  List of lists, storing an upper triangular matrix.
+                 Dimension Sfinal x Sfinal.                 
+    """
     
     # remember, unlike Fortran, indices here will start from 0. 
     # So remember use begin_idx as one less than what we were using in Fortran.
@@ -265,10 +295,10 @@ def getRSStri(t, u, model, h, K):
         ncols = 2*K+1
 
     Sfinal = len(t)
-    RSStri =  [[0 for i in range(0,Sfinal)] for j in range(0,Sfinal)]
+    RSStri =  [[0 for i in range(Sfinal)] for j in range(Sfinal)]
     brkpt_spacing = int(np.floor(Sfinal * h))
     if brkpt_spacing <= ncols:
-        print "minimum segment size must be greater than the number of regressors; resetting"
+        print ("minimum segment size must be greater than the number of regressors; resetting")
         brkpt_spacing = ncols + 2  #this number 2 is a random choice
         
     for idx in range(Sfinal- brkpt_spacing +1):
@@ -277,7 +307,7 @@ def getRSStri(t, u, model, h, K):
         elif (model == 'harmonic'):
             tmp = recresids(t[idx:], u[idx:], ncols, 'harmon', K) 
         else:
-            print "model not supported"
+            print ("model not supported")
         tmp2 = [i*i for i in tmp]
         RSStri[idx][idx:] = np.cumsum(tmp2)
         
@@ -286,12 +316,28 @@ def getRSStri(t, u, model, h, K):
 
 def buildDynPrTable(RSSTri_full, numBrks, Sfinal, h):
     """
+    Steps 1.2 & 2.2 of the pseudocode.
+    
+    Recursive residual calculations are implemented using a dynamic programming (DP) framkework.
+    Using RSSTri_full, the cost matrix is built. Then the usual DP strategy is used
+    to place breakpoints. 
+    Overall idea: If the breakpoints are correctly placed, the cumsum value of the 
+    residuals in the resulting intervals will be low, compared to the fits that
+    are crossing over the breakpoints.
+    
+    Helper functions:
+        getRSStri
+    
+    Inputs:
+        RSSTri_full:  An upper triangula matrix containing the recursive residuals.
+        numBrks:      Number of breakpoints desired.
+        Sfinal:
+        h:            parameter to calculate breakpoint spacing. ( 0 < h < 1)
+        
+    Output:
+        vecBrkPts:    A vector of breakpoints
+
     RSSTri_full[i,j]: cost of building series from i till j
-    h: is a fraction.
-
-    Result:
-    A vector of breakpoints
-
     matCost[0,:] cost of 1 breakpoint and two signals [0:b0] and [b0:-1]
     matCost[1,:] cost of 2 breakpoint and three signals [0:b0] and [b0:b1] and [b1:-1]
     matCost[2,:] cost of 3 breakpoint and four signals [0:b0] and [b0:b1] and [b1:b2], [b2:-1]
@@ -312,7 +358,7 @@ def buildDynPrTable(RSSTri_full, numBrks, Sfinal, h):
         for idx in range(beginIdx, endIdx):
             potIdxBegin = nbs * brkpt_spacing   #valid pos for nbs-1 breakpoints
             potIdxEnd = min(idx- brkpt_spacing, Sfinal-brkpt_spacing)
-            vecCost = [sys.maxint for i in range(0, Sfinal)]
+            vecCost = [sys.maxint for i in range(Sfinal)]
             for j in range(potIdxBegin, potIdxEnd):
                 vecCost[j] = matCost[nbs-1, j] + RSSTri_full[j][idx]
                 assert j< idx
@@ -337,84 +383,20 @@ def buildDynPrTable(RSSTri_full, numBrks, Sfinal, h):
 
     return  vecBrkPts
 
-
-def buildDynPrTable_stencil(RSSTri_full, numBrks, Sfinal, h):
-    """
-    RSSTri_full[i,j]: cost of building series from i till j
-    h: is a fraction.
-
-    Result:
-    A vector of breakpoints
-    """
-    #TODO: ; +1 to start index from 1
-    matCost = np.zeros((numBrks+1, Sfinal+1))
-    matPos = np.zeros((numBrks+1, Sfinal+1))
-
-    matPos[:,:] = -1
-    brkpt_spacing = int(np.floor(Sfinal*h))
-    
-    matCost[:,:] = 99999999
-    matCost[1,brkpt_spacing:Sfinal-brkpt_spacing+1] = RSSTri_full[0][brkpt_spacing-1:Sfinal-brkpt_spacing]
-    matPos[1,brkpt_spacing:Sfinal-brkpt_spacing+1] = [i for i in range(brkpt_spacing,Sfinal-brkpt_spacing+1)]
-    #for nbs in range(2,numBrks+1):
-    for nbs in range(2,3):
-        # matCost(nbs, beginIdx) to matCost(nbs,EndIdx) will get filled
-        beginIdx = nbs * brkpt_spacing          #for nbs=2, h=10, beginIdx=20
-        endIdx = Sfinal - brkpt_spacing       # endIdx = n-10 = 100-90 = 90 (say)
-        # vecCost will get filled from potIdxBegin to potIdnEnd.
-        # matCost at nbs point will be based on minimizing vecCost[potIdxBegin:potIdxEnd]
-        potIdxBegin = (nbs-1) * brkpt_spacing   #for nbs=2,h=10, potIdxBegin=10
-        for idx in range(beginIdx, endIdx+1):
-            potIdxEnd = min(idx, Sfinal-brkpt_spacing)
-            vecCost = [99999 for i in range(Sfinal+1)]
-            for j in range(potIdxBegin, potIdxEnd+1):
-                #RSSTri_full(j+1, idx) <-- cost of ([j+1, idx]), cost of [idx+1, n) is added later (see note 1)
-                #matCost(nbs-1, j) <-- cost of [1:j] using nbs-1 breakpoints
-                #TODO: are we supposed to take matCost[nbs-1,j] or matCost[1,j]  ?
-                vecCost[j] = matCost[nbs-1, j] + RSSTri_full[j][idx-1]  # remember that RSSTri_full is stored in the regular python way
-#                print "Values read: ", j, ",", idx-1
-                                                                      # matCost is stored in python style with 0 row 0 col empty
-            
-            #cost of nbs split (last one at idx)
-            matCost[nbs, idx]  = min(vecCost)
-            matPos[nbs, idx] = np.argmin(vecCost) #argmin returns the first one which is what we want to use
-    
-    #note 1:  add the cost of  segment(idx+1, n)
-    for idx in range(numBrks * brkpt_spacing, Sfinal-brkpt_spacing):
-        matCost[numBrks, idx] = matCost[numBrks, idx] + RSSTri_full[idx][Sfinal-1]
-        
-    tmp = np.argmin(matCost[numBrks, 0: Sfinal-brkpt_spacing + 1])
-    
-    last_brkpt_pos = tmp    #   + numBrks * brkpt_spacing
-    curr_brkpt_pos = last_brkpt_pos 
-    vecBrkPts = [-1 for i in range(0, numBrks)]
-    vecBrkPts[numBrks-1] = last_brkpt_pos
-    i = numBrks
-    while(i > 1):
-        curr_brkpt_pos = matPos[i, curr_brkpt_pos]
-        i = i -1
-        vecBrkPts[i-1] = curr_brkpt_pos + 1  #we are ignoring the 0-row,0-column
-    
-    #shift everything down by 1 to match the original vec_timestamps indices ... remember they start from 0.
-    vecBrkPts = [int(j-1) for j in vecBrkPts]
-    try:
-        index0 = vecBrkPts.index(0)
-        del (vecBrkPts[index0])
-    except:
-        #do nothing
-        print "no 0 in vecBrkPts"
-        
-    try:
-        indexSfinal = vecBrkPts(Sfinal-1)
-        del (vecBrkPts[indexSfinal])
-    except:
-        junk = 1
-
-    return vecBrkPts
-
     
 def hammingDist(list1, list2):
+    """
+    Hamming distance calculation.
+    Right now only BFAST is using this.
+    In future, if more allgorithms or the polyalgorithm itself use hamming distance, 
+    then move this routine to commons.py.
     
+    Inputs:
+        Two lists each containing a vector.
+    
+    Outputs:
+        Hamming distance between the two input vectors.
+    """
     len_list1 = len(list1)
     len_list2 = len(list2)
     
@@ -437,6 +419,42 @@ def hammingDist(list1, list2):
 def bfast(tyeardoy, vec_obs_all, presInd, \
           ewma_trainingStart, ewma_trainingEnd, ewma_lowthreshold, ewma_K, \
           frequency, numBrks, harmonicDeg, h, numColsProcess, pval_thresh, maxIter):
+    """
+    Algorithm BFAST.
+    
+    Inputs:
+        tyeardoy:             A 2 column matrix --- 1st column contains the years, the second
+                              column contains the doys.
+        vec_obs:              A 1 column array. It contains spectral values (including missing)
+                              for a fixed pixel and fixed band, in same chronological order as tyeardoy
+        presInd:              numpy array containing the indices where vec_obs has is valid.
+        frequency:            redundant parameter for our framework.
+        harmonicDeg:          The number of harmonics to be used for BFAST. (original paper had 1, we use 2.)
+        h:                    parameter to determine breakpoint spacing.
+                              0 < h < 1.
+        numColsProcess:       number of columns in the OLS-MOSUM process.
+                              I can't think of cases where this not be equal to 1, though.
+        pval_thresh:          user defined parameter.
+                              0 < pval_thresh < 1
+                              If pval > pval_thresh, then no significant change is assumed for that pixel.
+        maxIter:              Maximum numerb of iterations.
+
+
+        ewma_trainingStart, ewma_trainingEnd, ewma_lowthreshold, ewma_K: parameters for EWMACD. These are
+        used to decide whether there is sufficient data for that pixel to do any processing. Redundant
+        here now because this calculation has been moved to poly_1D.py, where presInd is calculated 
+        and simply passed into each component algorithm.
+
+        
+    Outputs:
+        brkPtsGI:    List of breakpoints, each breakpoint being represented by its global index.
+        brkPtYrDoy:           List of breakpoints, each breakpoint being described as [year, doy].
+        vecTrendFitFull:      piecewise linear approximation to the trend.
+                              original output of the algorithm. 
+                              Redundant as of now in the LULC with polyalgo sense.
+        brkpt_summary:        brkptsummary is needed in these 1D codes to make 1D plots. But for 2D, it is redundant.
+
+    """
 
     num_obs = len(vec_obs_all)
 
@@ -449,11 +467,11 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
 #
 #    #Corner case
 #    if (len(training_t) < 2 * ewma_K + 1):    #from ewmacd
-#        brkPtsGlobalIndex = [0, num_obs-1]
-#        brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGlobalIndex]
+#        brkPtsGI = [0, num_obs-1]
+#        brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGI]
 #        vecTrendFitFull = [-2222]*num_obs
 #        brkpt_summary = [-2222]*num_obs
-#        return brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary
+#        return brkPtsGI, brkPtYrDoy, vecTrendFitFull, brkpt_summary
 
     ind = 0
     num_days_gone = 0
@@ -599,13 +617,13 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
     
     # get reconstruction on original (all) timepoints
     vecTrendFitFull = np.zeros(num_obs)
-    brkPtsGlobalIndex = presInd[vecTrendBrks]
-    brkPtsGlobalIndex[0] = 0           #to account for the case when the very first obs is missing
-    brkPtsGlobalIndex[-1] = num_obs-1  #replace the last 'present' index with last actual index
+    brkPtsGI = presInd[vecTrendBrks]
+    brkPtsGI[0] = 0           #to account for the case when the very first obs is missing
+    brkPtsGI[-1] = num_obs-1  #replace the last 'present' index with last actual index
     final_numTrendSegs = len(vecTrendBrks) - 1
     for i in range(final_numTrendSegs):
-        startPoint = brkPtsGlobalIndex[i]
-        endPoint   = brkPtsGlobalIndex[i+1]
+        startPoint = brkPtsGI[i]
+        endPoint   = brkPtsGI[i+1]
         if (i == final_numTrendSegs-1):
             #use present indices to get fit. This is the most recently computed linear coeffs.
             #project on ALL indices
@@ -614,10 +632,10 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
             # use present indices to get fit. project on ALL indices
             vecTrendFitFull[startPoint:endPoint] = linCoefs[i][0] + linCoefs[i][1]*vec_timestamps_edited[startPoint:endPoint]
 
-    brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGlobalIndex]
+    brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGI]
     brkpt_summary = [0 for i in range(num_obs)]
-    for i in brkPtsGlobalIndex[1:-1]:
+    for i in brkPtsGI[1:-1]:
         brkpt_summary[i] = vecTrendFitFull[i] - vecTrendFitFull[i-1]
 
-    return brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary
+    return brkPtsGI, brkPtYrDoy, vecTrendFitFull, brkpt_summary
 #brkptsummary is needed in these 1D codes to make 1D plots. But for 2D, it is redundant.    
