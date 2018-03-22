@@ -237,10 +237,6 @@ def recresids(t, u, begin_idx, model, deg):
     # So curr_idx will run from begin_idx-1
     for curr_idx in range(begin_idx-1, Sfinal-1):
         if (check == True):    #we are setting it to be true forever, though.
-#            q, r = np.linalg.qr(X)
-#            p = np.dot(q.T, u)
-#            vec_fitcoefs = np.dot(np.linalg.inv(r), p)
-#            vec_fitobs = np.dot(X, vec_fitcoefs)
             A = np.dot(X[0:curr_idx+1,:].T, X[0:curr_idx+1,:])   #becuz the last index does not get included
             L = scipy.linalg.cho_factor(A, lower=False, overwrite_a=False,check_finite=True)
             vec_fitcoefs = scipy.linalg.cho_solve(L, np.dot(X[0:curr_idx+1,:].T, u[0:curr_idx+1]), overwrite_b=False, check_finite=True)
@@ -344,7 +340,7 @@ def buildDynPrTable(RSSTri_full, numBrks, Sfinal, h):
     matCost[2,:] cost of 3 breakpoint and four signals [0:b0] and [b0:b1] and [b1:b2], [b2:-1]
 
     """
-    #TODO: ; +1 to start index from 1
+    #TODO: ; +1 to start index from 1, may be?
     matCost = np.zeros((numBrks, Sfinal))
     matPos = np.zeros((numBrks, Sfinal))
 
@@ -370,9 +366,7 @@ def buildDynPrTable(RSSTri_full, numBrks, Sfinal, h):
     for idx in range(numBrks * brkpt_spacing, Sfinal-brkpt_spacing):
         matCost[numBrks-1, idx] = matCost[numBrks-1, idx] + RSSTri_full[idx][-1]
 
-#    print "numBrks = ", numBrks
     last_brkpt_pos = numBrks * brkpt_spacing + np.argmin(matCost[numBrks-1, numBrks * brkpt_spacing: Sfinal-brkpt_spacing])
-#    print last_brkpt_pos
     curr_brkpt_pos = int(last_brkpt_pos)
     vecBrkPts = [-1 for i in range(0, numBrks)]
     vecBrkPts[-1] = int(last_brkpt_pos)
@@ -510,25 +504,6 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
     vecSeasonalBrksOld  = np.ones(numBrks+2)
     hamTrend = hammingDist(vecTrendBrks, vecTrendBrksOld)
     hamSeason = hammingDist(vecSeasonalBrks, vecSeasonalBrksOld)
-
-#    np = frequency   #number of times the season appears in one cycle of the ts. Figure out how to determine this in general.
-#    ns = 10 * np + 1
-#    nt = np.ceiling(1.5 * np)
-#    nl = 23
-#    isdeg = 0
-#    itdeg = 1
-#    ildeg = 1
-#    nsjump = Sfinal    # ceiling(nt/10)
-#    ntjump = 4      # ceiling(ns/10)
-#    nljump = 3      # ceiling(nl/10)
-#    ni = 2
-#    no = 0
-#    rw = 1  #todo
-#    work = 1 # todo
-#    n = len(y)  #todo
-#    st.stl(vec_obs, len(vec_obs), \
-#            np, ns, nt, nl, isdeg, itdeg, ildeg, nsjump, ntjump, nljump, ni,no, \
-#            weights, vec_fit, vec_u, work)
     
     it = 0
     
