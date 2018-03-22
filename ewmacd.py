@@ -17,7 +17,6 @@ This version created on Oct 6 19:18:41 2016.
 #   polyalgorithm. 
 
 import numpy as np
-import pywt
 #from params import *
 # if plotting:
 #from matplotlib import pyplot as plt
@@ -72,8 +71,7 @@ def lsfit(t_loc, u, K, xbarlimit1):  #, plot):
     Ealpha = u - np.dot(X, alpha)
     sigma = np.sqrt(float(M)/float(M-1)) * np.std(Ealpha)
     tau1 = xbarlimit1*sigma
-    I = np.where(np.abs(Ealpha[0:M]) < tau1)[0] #[i for i in range(0, M) if np.abs(Ealpha[i]) < tau1]
-    #I = [i for i in range(0, M) if np.abs(Ealpha[i]) < tau1]
+    I = np.where(np.abs(Ealpha[0:M]) < tau1)[0]
     if (len(I) <= (2*K + 1)):
         alpha_star = []
         return alpha_star
@@ -84,7 +82,7 @@ def lsfit(t_loc, u, K, xbarlimit1):  #, plot):
     return alpha_star
 
 def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshold):
-#t_loc is the full t (i.e., the present timepoints)
+   #t_loc is the full t (i.e., the present timepoints)
     """
     Residuals calculation for Step 1 of the pseudocode.
     
@@ -128,11 +126,9 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
         nullFlag = True
         Estar_alphastar = [-2222 for i in range(S)]
         Ibar = []
-#        reconstruction = []
         sigma_Ihat = 0
-        return Ibar, sigma_Ihat, nullFlag, Estar_alphastar  #, reconstruction
-        
-#    mu = np.mean(Estar_alphastar[0:M])
+        return Ibar, sigma_Ihat, nullFlag, Estar_alphastar
+
     sigma2 = np.sqrt(float(M)/float(M-1)) * np.std(Estar_alphastar[0:M])  # we're taking the sample standard deviation; note that a[0:m] will be a[0],...,a[M-1], therefore length M
     
     tau1 = xbarlimit1 * sigma2
@@ -142,12 +138,10 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
         nullFlag = True
         Estar_alphastar = [-2222] * S
         Ibar = []
-#        reconstruction = []
         sigma_Ihat = 0
-        return Ibar, sigma_Ihat, nullFlag, Estar_alphastar  #, reconstruction
+        return Ibar, sigma_Ihat, nullFlag, Estar_alphastar
         
     Ibar2 = np.asarray([s for s in range(M,S) if ((np.abs(Estar_alphastar[s]) < tau2) and (D[s] > lowthreshold))])
-#    Ibar2 = np.where(np.logical_and(np.abs(Estar_alphastar[M:S]) < tau2, D[M:S] > lowthreshold))[0]
 
     if (len(Ihat) > 0 and len(Ibar2 > 0)):
         Ibar =  np.append(Ihat, Ibar2)
@@ -160,9 +154,7 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
 
     Estar_alphastar_Ihat = Estar_alphastar[Ihat] #[Estar_alphastar[i] for i in Ihat]
     sigma_Ihat = np.sqrt(float(len(Ihat))/float(len(Ihat)-1)) * np.std(Estar_alphastar_Ihat)
-    
-#    reconstruction = np.dot(Xbar, alpha_star)
-    
+        
     return Ibar, sigma_Ihat, nullFlag, Estar_alphastar #, reconstruction
 
 #@profile    
@@ -224,6 +216,8 @@ def flag_history(z, tau, Ibar):
         z:     EWMA of residuals resulting from harmonic regression
         tau:   Control chart vector
         Ibar:  Indices of outlier free timeseries.
+    Output:
+        f:     a list containing flag history
     
     """
     

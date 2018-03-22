@@ -146,11 +146,12 @@ def calcPValue(x, method, k, h, fnal):
     Brownian bridge crossing probabilities are read from the corresponding table.
     
     Input:
-        x:    PLS-MOSUM process vector 
-        k:    the number of columns in the 'process'
-        h:    parameter for grid spacing. ( 0 < h < 1)
-        fnal: the type of calculation to be used. Currently, only fnal=max is implemented.
-              In future, other kinds of fnal's may also be included. 
+        x:      the value at which the pValue has to be evaluated
+        method: right now only "brownian bridge increments" is supported
+        k:      the number of columns in the 'process'
+        h:      parameter for grid spacing. ( 0 < h < 1)
+        fnal:   the type of calculation to be used. Currently, only fnal=max is implemented.
+                In future, other kinds of fnal's may also be included. 
         
     Output:
         pval: A p-value less than a user defined parameter  V ∈ (0, 1) indicates the presence of breakpoints.
@@ -280,7 +281,7 @@ def getRSStri(t, u, model, h, K=0):
     
     Output:
         RSStri:  List of lists, storing an upper triangular matrix.
-                 Dimension Sfinal x Sfinal.                 
+                 Dimension Sfinal x Sfinal.
     """
     
     # remember, unlike Fortran, indices here will start from 0. 
@@ -388,7 +389,7 @@ def hammingDist(list1, list2):
     """
     Hamming distance calculation.
     Right now only BFAST is using this.
-    In future, if more allgorithms or the polyalgorithm itself use hamming distance, 
+    In future, if more algorithms or the polyalgorithm itself use hamming distance, 
     then move this routine to commons.py.
     
     Inputs:

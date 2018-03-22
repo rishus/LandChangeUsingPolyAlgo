@@ -8,13 +8,10 @@ This version created on Oct 6 19:21:18 2016
 """
 
 import numpy as np
-#from matplotlib import pyplot as plt
 import scipy.special as splfn
 import l2appr as myb
 import copy
-#import os
 from commons import regress
-
 
 def despike(vec_timestamps, vec_obs, despike_tol):
     
@@ -473,9 +470,8 @@ def calcFittingStats(vec_obs, vec_fitted, nParams):
     
     """
     Step 5 of the pseudocode:
-        given the (i) input x-coordinates, (ii) observations, and (iii) a linear fit model
-        get the 'goodness of fit'.
-        F-statistics is used.
+        given the (i) observations, and (ii) a linear fit model get the 'goodness of fit'.
+        F-statistics or p-of-F value may be used.
         
     Output:
         modelStats:    A dictionary with a bunch of statistics on the model.
@@ -571,10 +567,12 @@ def takeOutWeakest(currModel, threshold, vec_timestamps, vec_obs, v, vertVals):
         Weakest vertex is the left vertex of this segment.
 
     Inputs:
-        nCurrVerts:  number of vertices in the current (incoming) model.
-        nObs:        number of x values.
-        x:           the x-coordinate vector
-        y:           the y-coordinate vector
+        currModel:      a dictionary describing the model being evaluated
+        threshold:      recovery_threshold
+        vec_timestamps: the x-coordinate vector
+        vec_obs:        the y-coordinate vector
+        v:              indexes of the x-coords wrt vec_timestamps
+        vertVals:       y-coordinates at the vertices
     
     Exactly 1 vertex will get dropped. So ---
     remVerts, remVertsVals: each have nVerts-1 elements,
@@ -711,7 +709,7 @@ def check_slopes(model, recovery_thresh):
     Again, step 7 of the pseudocode:
         
         Once a model has been decided, this routine double checks the slopes in the model.
-        We don't want the slopes to 'abnormal'
+        We don't want the slopes to be 'abnormal'
         For e.g., a recovery steeper than a threshold may indicate unacceptability for the model.
         
     Input:
@@ -766,7 +764,8 @@ def findBestTrace_alternate(vec_timestamps, vec_obs, currVerts):
        currVerts:       the current vertices.
    
     Output:
-       bt:  a dictionary containing  vertices, vertYVals, yFitVals, and slopes of the calcualted model.
+       bt:  a dictionary containing  
+            vertices, vertYVals, yFitVals, and slopes of the calcualted model.
             (just as findBestTrace did.)
    
    """
@@ -779,7 +778,7 @@ def findBestTrace_alternate(vec_timestamps, vec_obs, currVerts):
 #    "slopes is needed for later analysis in the main algorithm. So we store and return those as well"
 
     numSegs = len(currVerts) - 1
-    bt = {'vertYVals': 'null', 'yFitVals' : 'null','slopes' : 'null'}
+    bt = {'vertices': 'null', 'vertYVals': 'null', 'yFitVals' : 'null','slopes' : 'null'}
 
     # order = degree + 1
     order = 2
