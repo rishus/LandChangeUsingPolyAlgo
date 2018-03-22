@@ -250,9 +250,7 @@ def recresids(t, u, begin_idx, model, deg):
         else:
             i = 1
 
-#       y = scipy.linalg.cho_solve(L, X[i+1,:].T, overwrite_b=False, check_finite=True)
-        fr = 1 + X[curr_idx+1,:].dot(la.cho_solve(L, X[curr_idx+1,:].T, overwrite_b=False, check_finite=True))   #np.linalg.solve(r.T.dot(r) , X[i+1,:].T)
-#        print  'fr =', fr
+        fr = 1 + X[curr_idx+1,:].dot(la.cho_solve(L, X[curr_idx+1,:].T, overwrite_b=False, check_finite=True))
         recres[curr_idx + 1] = (u[curr_idx+1] - np.dot(X[curr_idx+1, :], vec_fitcoefs))/np.sqrt(fr)
     
     return recres
