@@ -13,6 +13,8 @@ import l2appr as myb
 import copy
 from commons import regress
 
+missing_data_vals = -2222
+
 def despike(vec_timestamps, vec_obs, despike_tol):
     
     """ 
@@ -1004,8 +1006,8 @@ def landTrend(tyeardoy, vec_obs_all, presInd, \
 #        brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGlobalIndex]
 #        bestModelInd = -9999
 #        my_models = []
-#        vecTrendFitFull = [-2222]*num_obs
-#        brkpt_summary = [-2222]*num_obs
+#        vecTrendFitFull = [missing_data_vals]*num_obs
+#        brkpt_summary = [missing_data_vals]*num_obs
 #        return bestModelInd, my_models, brkPtsGlobalIndex, brkPtYrDoy, vecTrendFitFull, brkpt_summary #, [], []
     
     ind = 0

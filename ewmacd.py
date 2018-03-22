@@ -33,6 +33,8 @@ NA :  missing data
 3  :  snow
 4  :  cloud
 """
+missing_data_vals = -2222
+
 def lsfit(t_loc, u, K, xbarlimit1):  #, plot):
     #t_loc is the training t
     """
@@ -124,7 +126,7 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
     Estar_alphastar = D - np.dot(Xbar, alpha_star)
     if (max(np.abs(Estar_alphastar)) > 1000000 ):
         nullFlag = True
-        Estar_alphastar = [-2222 for i in range(S)]
+        Estar_alphastar = [missing_data_vals for i in range(S)]
         Ibar = []
         sigma_Ihat = 0
         return Ibar, sigma_Ihat, nullFlag, Estar_alphastar
@@ -136,7 +138,7 @@ def getResiduals(alpha_star, t_loc, D, u, K, xbarlimit1, xbarlimit2, lowthreshol
     Ihat =  np.asarray([s for s in range(M) if ((np.abs(Estar_alphastar[s]) < tau1) and (D[s] > lowthreshold)) ])  #2nd condition redundant
     if (len(Ihat) < 2*K + 1):
         nullFlag = True
-        Estar_alphastar = [-2222] * S
+        Estar_alphastar = [missing_data_vals] * S
         Ibar = []
         sigma_Ihat = 0
         return Ibar, sigma_Ihat, nullFlag, Estar_alphastar
@@ -281,7 +283,7 @@ def summarize(jump_vals_presSten, presInd, num_obs, summaryMethod, tyeardoy):
         
     
     """
-    missing_data_vals = -2222
+    
     ewma_summary = [missing_data_vals for i in range(num_obs)]
     tt = 0
     for i in range(len(presInd)):
@@ -403,12 +405,12 @@ def ewmacd(tyeardoy, vec_obs, presInd, \
 
 #    # Corner case:
 #    if (len(training_t) < 2 * K + 1):
-#        this_band_fit = [-2222] * (nc+ns+1) # for i in range(nc+ns+1)]
-#        this_band_resids = [-2222] * num_obs #for i in range(num_obs)]
-#        this_band_summary = [-2222] * num_obs #for i in range(num_obs)]
+#        this_band_fit = [missing_data_vals] * (nc+ns+1) # for i in range(nc+ns+1)]
+#        this_band_resids = [missing_data_vals] * num_obs #for i in range(num_obs)]
+#        this_band_summary = [missing_data_vals] * num_obs #for i in range(num_obs)]
 #        this_band_brkptsglobalIndex = [0, num_obs-1]
 #        this_band_brkPtYrDoy = [tyeardoy[0,:], tyeardoy[num_obs-1,:] ]
-#        brkpt_summary = [-2222]*num_obs
+#        brkpt_summary = [missing_data_vals]*num_obs
 #        return  this_band_resids, this_band_summary, this_band_brkptsglobalIndex, \
 #                     this_band_brkPtYrDoy , brkpt_summary
     
@@ -425,12 +427,12 @@ def ewmacd(tyeardoy, vec_obs, presInd, \
     this_band_fit = lsfit(training_t, u, K, xbarlimit1)
     # Corner case:
     if (len(this_band_fit)==0):        
-        this_band_fit = [-2222] * (nc+ns+1)# for i in range(nc+ns+1)]
-        this_band_resids = [-2222]* num_obs# for i in range(num_obs)]
-        this_band_summary = [-2222]*num_obs  # for i in range(num_obs)]
+        this_band_fit = [missing_data_vals] * (nc+ns+1)# for i in range(nc+ns+1)]
+        this_band_resids = [missing_data_vals]* num_obs# for i in range(num_obs)]
+        this_band_summary = [missing_data_vals]*num_obs  # for i in range(num_obs)]
         this_band_brkptsglobalIndex = [0, num_obs-1]
         this_band_brkPtYrDoy = [tyeardoy[0,:], tyeardoy[num_obs-1, :] ]
-        brkpt_summary = [-2222]*num_obs
+        brkpt_summary = [missing_data_vals]*num_obs
         return this_band_resids, this_band_summary, this_band_brkptsglobalIndex, \
                               this_band_brkPtYrDoy, brkpt_summary
     
@@ -440,12 +442,12 @@ def ewmacd(tyeardoy, vec_obs, presInd, \
                                          xbarlimit1, xbarlimit2, lowthreshold)    #, recontruction = \
 
     if (nullFlag == True):
-        this_band_fit = [-2222] * (nc+ns+1)# for i in range(nc+ns+1)]
-        this_band_resids = [-2222]* num_obs# for i in range(num_obs)]                         
-        this_band_summary = [-2222]* num_obs # for i in range(num_obs)]
+        this_band_fit = [missing_data_vals] * (nc+ns+1)# for i in range(nc+ns+1)]
+        this_band_resids = [missing_data_vals]* num_obs# for i in range(num_obs)]                         
+        this_band_summary = [missing_data_vals]* num_obs # for i in range(num_obs)]
         this_band_brkptsglobalIndex = [0, num_obs]
         this_band_brkPtYrDoy = [tyeardoy[0,:], tyeardoy[num_obs-1, :] ]
-        brkpt_summary = [-2222]*num_obs
+        brkpt_summary = [missing_data_vals]*num_obs
         return this_band_resids, this_band_summary, this_band_brkptsglobalIndex, \
                               this_band_brkPtYrDoy, brkpt_summary
 
@@ -465,7 +467,7 @@ def ewmacd(tyeardoy, vec_obs, presInd, \
     # notice that "present data: = "good data" \union "outlier data"
     # This stencil does not include the time stamps for which the data was missing!
     # Valuewise: outlier locations get value -2222, good locations get value in jump_vals
-    jump_vals_presSten = -2222 * np.ones(Sfinal,  dtype=np.int)
+    jump_vals_presSten = missing_data_vals * np.ones(Sfinal,  dtype=np.int)
     jump_vals_presSten[Ibar] = persistenceVec
 
     # summary for this band for this pixel: NOW we include the 'missing' data points as well
@@ -479,9 +481,8 @@ def ewmacd(tyeardoy, vec_obs, presInd, \
 #    for i in this_band_brkptsglobalIndex:
 #        this_band_brkPtYrDoy_summary[i] = tyeardoy[i,0]+ float(tyeardoy[i, 1])/1000.0
 
-
     # summarize residuals
-    this_band_resids = [-2222] *  num_obs #for i in range(num_obs)]
+    this_band_resids = [missing_data_vals] *  num_obs #for i in range(num_obs)]
 
 #        for i in range(0, len(this_band_summary)):
 #            this_pixel_summary.append(this_band_summary[i])

@@ -20,6 +20,8 @@ from matplotlib import pyplot as plt
 import sys
 from basic_utils import regress
 
+missing_data_vals = -2222
+
 def critValuesTable(method, startRow, endRow):
     """
     Reference tables for critical values calculations.
@@ -462,8 +464,8 @@ def bfast(tyeardoy, vec_obs_all, presInd, \
 #    if (len(training_t) < 2 * ewma_K + 1):    #from ewmacd
 #        brkPtsGI = [0, num_obs-1]
 #        brkPtYrDoy = [tyeardoy[i,:] for i in brkPtsGI]
-#        vecTrendFitFull = [-2222]*num_obs
-#        brkpt_summary = [-2222]*num_obs
+#        vecTrendFitFull = [missing_data_vals]*num_obs
+#        brkpt_summary = [missing_data_vals]*num_obs
 #        return brkPtsGI, brkPtYrDoy, vecTrendFitFull, brkpt_summary
 
     ind = 0
