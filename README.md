@@ -8,3 +8,5 @@ Main file is poly\_1D.py.
 
 bfast\_ps.pdf, landtrendr\_ps.pdf, and ewmacd\_ps.pdf provide the pseudocodes for the algorithms.
 
+l2appr.py contains python version of the relevant functions in bsplines.f (refer lulcFortran repository). 
+
